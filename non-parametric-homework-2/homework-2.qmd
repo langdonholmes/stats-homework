@@ -68,34 +68,6 @@ Assuming equal variance between the two samples, $t_{.05,39} = 1.64$, which is
 not extreme enough to reject the null hypothesis that the means are equal
 between the two groups. This is true for both one-sided and two-sided tests.
 
-```{r}
-
-student_t_test <- function(a, b) {
-  t = (mean(a) - mean(b)) / sqrt((var(a)/length(a) + var(b)/length(b)))
-  return(t)
-}
-
-get_df <- function(a,b) {
-  numerator <- (var(a)/length(a) + var(b)/length(b))^2
-  denominator_a <- (var(a)/length(a))^2 / (length(a)-1)
-  denominator_b <- (var(b)/length(b))^2 / (length(b)-1)
-  return(numerator/(denominator_a+denominator_b))
-}
-
-cat(
-  student_t_test(urban, rural),
-  "not less than",
-  qt(p=.05, df=get_df(urban, rural)),
-  "\n"
-  )
-
-#equivalent to
-t.test(urban, rural, "less")
-
-```
-
-Without assuming equal variance, the results are the same.
-
 # Question 2
 
 ```{r}
@@ -127,7 +99,7 @@ permutation.test(urban, rural, 10000, 246.5)
 
 Using a permutation test, I found that there is a very low probably of finding
 such a low sum of ranks for urbanites under $H_{0}$. This analysis is closer to
-the rank sum test than the T-test for this data.
+the rank sum test than the T-test for this data; however, the permutation test appears to have higher power. 
 
 # Question 3 Large Sample Approximation
 
@@ -139,3 +111,14 @@ asd
 C1 <- c(1.0,5.3,1.2,3.9,8.3,6.3,2.2,9.8,2.8,2.6)
 C1 <- c(5.1,6.0,8.0,8.2,7.3,4.4,7.4,7.5,6.4,4.5,8.9)
 ```
+
+# Question 5 Equality of Variance F-test, Siegel-Tukey, and Higgins
+
+# Question 6 F-test and one-way ANOVA
+```{r}
+G1 <- c(2.9736, 0.9448, 1.6394, 0.0389, 1.2958)
+G2 <- c(0.7681, 0.8027, 0.2156, 0.0740, 1.5076)
+G3 <- c(4.8249, 2.2516, 1.5609, 2.0452, 1.0959)
+```
+
+# Question 7 Kruskal-Wallis
