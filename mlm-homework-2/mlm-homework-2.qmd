@@ -1,0 +1,74 @@
+---
+title: "Homework 2"
+author: "Langdon Holmes"
+date-modified: "today"
+subtitle: "Multilevel Modeling"
+format: pdf
+code-fold: false
+code-overflow: wrap
+editor: 
+  markdown: 
+    wrap: 80
+---
+
+# Question 1
+
+Use the "build-up" stepwise strategy of model building to construct a model for the
+educational data, using language test scores (LANGPOST) as the dependent variable and
+(potentially, depending on how it goes) percentage minority (PERCMINO) and SES
+(SES) as predictors. To anchor your analysis, use the null model (random effects
+ANOVA) as your simplest model.
+
+```{r}
+library(haven)
+df <- read_sav("sb.sav")
+```
+
+
+# Question 2
+
+Now use the "tear down" stepwise strategy. To anchor your analysis, use as the most
+complex model one with random intercepts, in which SES serves as a level-1 predictor
+with random slopes and PERCMINO as a level-2 predictor of both intercepts and slopes.
+Do you settle on the same model as in #1? (I'm not leading you; I really don't know!) [15] 
+
+
+```{r, message = FALSE, warning = FALSE}
+
+```
+
+
+# Question 3
+
+Now fit the model with a random intercept and a random slope. Use the website to plot
+and interpret the significant cross-level interaction effect. Leave the "df" boxes blank, and
+remember that the web page does not understand scientific notation (i.e., if you see
+0.193383E-02, enter 0.00193383 instead). If Rweb is not working, you can simply copy
+and paste the generated code directly into R. Include and interpret: [20] 
+
+## a
+
+Text output (interpret only the "simple intercepts and simple slopes" and "regions
+of significance" sections).
+
+
+
+## b
+
+A plot of the simple regression of LANGPOST on SES at three conditional
+values of PERCMINO: the minimum observed (0%), middle (45%), and
+maximum observed (90%). 
+
+## c
+
+A plot of the confidence bands around the simple slope of LANGPOST regressed
+on SES. The x-axis of this plot should extend from the minimum to maximum
+observed values of PERCMINO.
+
+# Question 4
+
+Einstein allegedly claimed that you never really know a subject until you can explain it to
+your grandmother. Please pretend I am your grandmother, and that I just asked you what
+group mean centering and grand mean centering are. Explain these concepts to the best
+of your ability. Assume that your "grandmother" has no quantitative training, speaks
+fluent English, and is genuinely curious. [10]

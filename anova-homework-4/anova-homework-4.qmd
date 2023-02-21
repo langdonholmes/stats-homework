@@ -1,0 +1,101 @@
+---
+title: "Homework 4"
+author: "Langdon Holmes"
+date-modified: "today"
+subtitle: "ANOVA"
+format: pdf
+code-fold: false
+code-overflow: wrap
+editor: 
+  markdown: 
+    wrap: 80
+---
+
+# 1 Effect Size
+
+## 1.1 Sample Size and Number of Groups from Summary Statistics
+
+$df_{between} = k - 1$, so $2 = k - 1$ and $3 = k$. There are 3 groups.
+
+$df_{within} = N - k$, so $21 = N - 3$ giving $24 = N$. The overall sample size
+is 24.
+
+Since the design is balanced, and there are 3 groups, the per-group sample size
+is $24/3 = 8$.
+
+## 1.2 Effect Sizes
+
+```{r}
+eta.squared <- function(ss_between, ss_within){
+  return(ss_between / (ss_between + ss_within))
+}
+
+omega.hat <- function(ss_between, ss_within, ms_within, k){
+  numerator <- ss_between - (k - 1)*ms_within
+  denominator <- (ss_between + ss_within) + ms_within
+  return(numerator/denominator)
+}
+
+r.squared.adjusted <- function(N, k, eta_squared){
+  return(1 - ((N-1)/(N-k))*(1-eta_squared))
+}
+
+eta_squared <- eta.squared(660.3, 1107)
+cat("Eta Squared:", eta_squared, end="\n")
+cat("Omega Hat Squared:", omega.hat(660.3, 1107, 52.7, 3), end="\n")
+cat("Adjusted R Squared:", r.squared.adjusted(24, 3, eta_squared))
+```
+
+# 2 Power Analysis
+
+```{r}
+#| output: false
+library("WebPower")
+```
+
+
+## 2.1 Power to detect Omega Squared .15
+
+WebPower needs effect size in terms of $f$, which is related to $\omega^{2}$ by
+$f = \sqrt{\frac{\omega^{2}}{1 - \omega^{2}}}$
+
+```{r}
+f <- sqrt(0.15 / (1 - 0.15))
+# n is the overall sample size, so 10*4
+wp.anova(k=4, n=40, f=f)
+```
+
+## 2.2 Minimum per-group sample size
+
+```{r}
+wp.anova(k=4, f=.4, power=.8)
+```
+
+The minimum per-group sample size to detect an effect size of $f=.4$ is
+$\lceil \frac{72.17047}{4} \rceil = 19$.
+
+If we are comfortable rounding down a smidge, a per-group sample size of 18
+would be fine as well.
+
+# 3 Contrast
+
+## 3.1 Given sample size
+
+$f$ is related to $d$ by $f = \frac{d}{\sqrt{k\sum_{i}c_{i}^{2}}}$, so
+$f = \frac{.5}{\sqrt{5(1/4 + 1/4 + 1/9 + 1/9 + 1/9)}}$, which reduces to
+$f = \frac{.5}{\sqrt{5(1/2 + 3/9)}}$ and $f = \frac{.5}{\sqrt{5(15/18)}}$, so
+$f = .244949$
+
+```{r}
+wp.anova(k=5, n=25, f=0.244949, type="two.sided")
+```
+The power is .2146, which is quite low.
+
+## 3.2 Given power
+
+```{r}
+wp.anova(k=5, f=0.244949, power=0.8, type="two.sided")
+```
+
+The minimum per-group sample size to detect an effect size of $f=.25$ is
+$\lceil \frac{132.9}{5} \rceil = 27$.
