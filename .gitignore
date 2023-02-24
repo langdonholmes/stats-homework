@@ -2,5 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
+.ipynb_checkpoints
 stats_homework.Rproj
 renv
+data
