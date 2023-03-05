@@ -1,0 +1,79 @@
+---
+title: "Homework 5"
+author: "Langdon Holmes"
+date-modified: "today"
+subtitle: "ANOVA"
+format: pdf
+code-fold: false
+code-overflow: wrap
+editor: 
+  markdown: 
+    wrap: 80
+---
+
+# 1 Six Orthogonal Contrasts
+
+```{r}
+p_1 <- 0.047
+p_2 <- 0.001
+p_3 <- 0.009
+p_4 <- 0.030
+p_5 <- 0.012
+p_6 <- 0.036
+
+cat("\nAlphas:", .05/1, .05/2, 0.05/3, .05/4, .05/5, .05/6)
+```
+
+Controlling the family-wise error rate at 0.05, different methods will impact results.
+
+The Bonferroni procedure is the most conservative. It results in only 1 significant contrast (contrast 2). This means we only have one significant finding.
+
+The Holm procedure is at least as powerful as Bonferroni and does not require any additional assumptions. Using the Holm procedure, we start with the lowest p-value and reject ($\alpha = 0.05$) the null hypothesis associated with the second contrast. We continue to the next smallest p-value (contrast 3), which is also significant ($\alpha = 0.025$). Contrast 5 is also significant ($\alpha = 0.0167$). The fourth smallest p-value, associated with the 4th contrast, is not significant ($\alpha = 0.0125$), so we stop. This procedure results in 3 significant contrasts, for contrasts 2, 3, and 5.
+
+The Hochberg procedure is similar to the Holm procedure but may be more powerful. We reject the largest p-value (contrast 1). We reject all smaller p-values, which results in all 6 contrasts being significant.
+
+# 2 Food/Water Deprivation
+
+```{r}
+means <- c(18, 24, 8, 12, 10)
+ms_within <- 5.6
+ms_between <- 214
+se <- sqrt(5.6)/sqrt(5)
+cv <- qtukey(p=0.95, nmeans=5, df=20)/sqrt(2)
+cat("Critical Value:", cv)
+cat("Confidence Interval:", cv*se)
+sapply(means, "-", means)
+```
+
+## 2.1 Common SE
+
+The common standard standard error is given by $\frac{\sqrt{MS_{w}}}{\sqrt{n}}$. Since all groups have $n=5$, the SE is common to all groups, $\frac{\sqrt{5.6}}{\sqrt{5}} = 1.058301$
+
+## 2.2 Ten pairwise differences
+
+The confidence interval is the same for all groups and is given by $q_{5,20,0.05}(SE)$, which is 3.167.
+
+| Contrast | Confidence Interval | Significant |
+| -------- | :-----------------: | :---------: |
+| $u_{1}-u_{2}$ | $6 \pm 3.167$  | Yes         |
+| $u_{1}-u_{3}$ | $10 \pm 3.167$ | Yes         |
+| $u_{1}-u_{4}$ | $6 \pm 3.167$  | Yes         |
+| $u_{1}-u_{5}$ | $8 \pm 3.167$  | Yes         |
+| $u_{2}-u_{3}$ | $16 \pm 3.167$ | Yes         |
+| $u_{2}-u_{4}$ | $12 \pm 3.167$ | Yes         |
+| $u_{2}-u_{5}$ | $14 \pm 3.167$ | Yes         |
+| $u_{3}-u_{4}$ | $-4 \pm 3.167$ | Yes         |
+| $u_{3}-u_{5}$ | $-2 \pm 3.167$ | No          |
+| $u_{4}-u_{5}$ | $2 \pm 3.167$  | No          |
+
+# 3 Family of five contrasts
+
+```{r}
+qt(p=0.01,36,lower.tail=FALSE)
+qt(p=0.005,36,lower.tail=FALSE)
+```
+
+
+The Bonferroni-corrected alpha value for 5 contrasts is 0.01 (0.05/5). The degrees of freedom is $N - k$, or 36.
+
+The critical values are $t_{0.01,36} = 2.43$ (one-sided) and $t_{0.005,36} = 2.72$ (two-sided).

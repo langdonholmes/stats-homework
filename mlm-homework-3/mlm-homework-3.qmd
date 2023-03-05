@@ -1,0 +1,46 @@
+---
+title: "Homework 3"
+author: "Langdon Holmes"
+date-modified: "today"
+subtitle: "Multilevel Modeling"
+format: pdf
+code-fold: false
+code-overflow: wrap
+editor: 
+  markdown: 
+    wrap: 80
+---
+
+# 1
+In a univariate random intercept, random slope model, test the effect of SEX on student-rated
+popularity (POPULAR). Now test the effect of SEX on teacher-rated popularity (TEACHPOP).
+Interpret each set of results in isolation. [12]
+
+# 2
+In a joint multivariate model that allows all intercepts and slopes to covary, but does not allow
+the level-1 residuals to covary across variables, assess the same effects you did in (1). Report and
+interpret the results. What is better about the analysis in (2) vs. (1)? [12]
+
+# 3
+Now test the effect of the level-2 predictor teacher experience (TEXP) on both student-rated
+and teacher-rated popularity (without SEX in the model). Report and interpret the results. [12]
+
+# 4
+You have now learned at least two ways to formally test the hypothesis that the effects in (3)
+are equal (the deviance test and a multiparameter test). Use both of these methods to test the
+hypothesis of equal slopes. Report and interpret the results. Are the p-values the same? Close?
+Report them to as many decimal places as possible. [12]
+
+# 5 Power Analysis
+Using MLPowSim, conduct an a priori power analysis for the slope point estimates in the
+following multilevel model, with conjectured parameter values as indicated:
+
+
+Limit your attention to a potential data set with 40 clusters of size 10 each, and maximum
+likelihood (ML) estimation. Assume the predictors are each standard normal both at level-1 and
+level-2. What is the approximate power for detecting each slope at   .05 ? Speculate about
+why these power estimates are so different even though both population values are .2. [12]
+
+# Extra Credit
+Compose a poem (any type: haiku, limerick, sonnet, ballad, free verse... whatever
+you like) describing how multilevel modeling makes you feel. [+3]

@@ -186,6 +186,63 @@ cat("Siegel:", w, "is not below the critical value of 81.")
 ```
 
 ```{r}
+c1 <- c(2,15,16,16,24,26)
+c2 <- c(8,14,16,16,22,23)
+
+st_ranker <- function(data){
+
+  # Sorting indices in ascending order
+  asc_inds <- sort(data, index.return=TRUE)$ix
+  
+  # Sorting indices in descending order
+  desc_inds <- rev(asc_inds)
+
+  st_ranks <- numeric(length(data))
+  st_ranks[1] <- asc_inds[1]
+  
+  # initialize a moving index that will help us pull the appropriate rank index
+  moving_index = 1
+  
+  # Calculate the ranks for the remaining data points
+  for (i in seq(2, length(data), 2)) {
+    # if the index is divisible by 4, pull the next two from the ascending list
+    if (i %% 4 == 0) {
+      st_ranks[i] <- asc_inds[moving_index]
+      moving_index = moving_index + 1
+      if (i+1 <= length(data)){
+        st_ranks[i+1] <- asc_inds[moving_index]
+      }
+    } else {
+      st_ranks[i] <- desc_inds[moving_index]
+      moving_index = moving_index + 1
+      if (i+1 <= length(data)){
+        st_ranks[i+1] <- desc_inds[moving_index]
+      }
+      }
+  }
+  
+  # Take the mean of any repeated ranks
+  print(duplicated(st_ranks, ))
+  
+  (1:length(data))
+  
+  # x_unique <- unique(x)
+  # x_ranks <- rank(x_unique)
+  # x_ranks[match(x,x_unique)]
+  
+  return(st_ranks)
+  
+}
+
+st_ranks <- st_ranker(c(c1, c2))
+print(st_ranks)
+
+labels <- c(rep("A", length(c1)), rep("B", length(c2)))
+print(c(c1,c2)[st_ranks])
+print(labels[st_ranks])
+```
+
+```{r}
 # Higgins
 mad <- function(x){
   return(sum(abs(x-median(x)))/length(x))
@@ -268,7 +325,10 @@ significant difference between the group means.
 # Question 7 Kruskal-Wallis
 
 ```{r}
-kruskal.test(list(G1, G2, G3))
+c1 <- c(16,18,12)
+d1 <- c(9,11)
+d2 <- c(21,23)
+kruskal.test(list(c1, d1, d2), )
 ```
 
 The Kruskal-Wallis test in R did not quite reach the level of significance at

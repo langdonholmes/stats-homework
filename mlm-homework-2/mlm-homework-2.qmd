@@ -40,6 +40,17 @@ up.3 <- lmer(langpost ~ ses + percmino + (ses|schoolnr), data = df)
 up.4 <- lmer(langpost ~ ses*percmino + (ses|schoolnr), data = df)
 ```
 
+All models are shown in Table 1. The estimate for the slope in the null model is 40, which is roughly equal to the mean of the language post-test scores. Not very informative
+
+Adding percentage minority results in an improvement to model fit, and a low p-value for the coefficient, which indicates a significant effect of minority percentage on language scores. This effect is negative, which means that schools with a higher percentage of minority students perform less well on the language test.
+
+Adding in socioeconomic status also improves model fit, and the effect is also significant. This time, the effect is positive, meaning that students with higher socioeconomic status have higher language scores. We can interpret this coefficient to mean that for every unit increase in socioeconomic status, we can expect language score to improve by about 0.3. Adding in socioeconomic status also reduces the estimated effect of minority percentage, because socioeconomic status explains some of that variation.
+
+Then I tried estimating a random slope for socioeconomic status that varies across schools. This had a negative impact on model fit, and changed our parameter estimates very little.
+
+Even so, I decided to add an interaction effect between socioeconomic status and minority percentage to see if this could help to explain the variation in schools. I found that this interaction effect was significant, but quite small. This model seems to recover the effect of minority percentage on language post-test scores, but the overall fit as measured by AIC and BIC is worse. 
+
+
 ```{r, warning = FALSE, output = "asis"}
 stargazer(up.null, up.1, up.2, up.3, up.4, header=FALSE, 
           column.labels = c("Null", "+percmino", "+ses", "+ses slope", "+ses*percmino")
@@ -68,16 +79,23 @@ leading you; I really don't know!) \[15\]
 down.1 <- lmer(langpost ~ ses*percmino + (ses|schoolnr), data = df)
 down.2 <- lmer(langpost ~ ses + percmino + (ses|schoolnr), data = df)
 down.3 <- lmer(langpost ~ ses + percmino + (1|schoolnr), data = df)
-down.4 <- lmer(langpost ~ ses + (1|schoolnr), data = df)
 ```
+
+For the "tear down" strategy (see Table 2), I started with a model that includes random intercepts, SES, PERCMINO, the interaction between them, and a random slope. This is the same model I tried at the end of the build up strategy.
+
+I removed the interaction effect first, which resulted in an improvement in overall model fit according to any metric. This also results in a much smaller coefficient estimate for minority percentage, but I am not sure at this point which of these estimates is more accurate.
+
+Finally, I tried removing the random slope, which again improved BIC, but resulted in worse model fit as measured by Log Likelihood and AIC.
 
 ```{r, warning = FALSE, output = "asis"}
 stargazer(down.1, down.2, down.3, header=FALSE,
-          column.labels = c("Max", "-ses*percmino", "-ses slope", "-percmino")
+          column.labels = c("Max", "-ses*percmino", "-ses slope")
           )
 ```
 
-In this case, I would again choose the model with a fixed slope because I do not think that the minor improvements in model fit would justify the inclusion of additional parameters The Bayesian information criterion supports my approach in both cases. This makes sense, since the BIC penalizes model complexity, which feels appropriate for an exploratory analysis such as this. 
+In this case, I would again choose the model with a fixed slope because I do not think that the minor improvements in model fit would justify the inclusion of additional parameters The Bayesian information criterion supports my approach in both cases. This makes sense, since the BIC penalizes model complexity, which feels appropriate for an exploratory analysis such as this.
+
+NOTE: Subsequent analyses show that the interaction between percentage minority and socioeconomic status is interesting and probably worth modeling. In the future, I may place more stock in the significance of parameter estimates and less stock in BIC as a single measure of model fit.
 
 # Question 3
 
@@ -250,3 +268,5 @@ just asked you what group mean centering and grand mean centering are. Explain
 these concepts to the best of your ability. Assume that your "grandmother" has
 no quantitative training, speaks fluent English, and is genuinely curious.
 \[10\]
+
+Hi grandma! I am taking a boat load of statistics courses, and I am really excited to share something I learned with you. In statistics, it is sometimes helpful to carefully alter our data before we do statistics on it. Of course, we have to be careful not to change our data in a way that would make our results nonsense, so we are sure to go about it carefully. If we carefully change our data, we can sometimes make our statistical methods work better, or maybe the data just makes more sense if we change it a little bit. My new favorite trick is centering, which is when we subtract a certain value from all the measurements in our dataset. Since you were a teacher, you know that student learning outcomes are better at some schools than others. So what if we are interested in doing statistics that focuses on individual students' performance in different schools? We couldn't compare the performance of a student at La Canada high school to the performance of a student at Pasadena high school directly, because Pasadena high school usually has better performing students. It turns out, we can use group mean centering to look at individual student performance. For this, we just subtract the average performance of Pasadena school students from each students' performance score, and we do the same for La Canada students. Then we get a performance score that shows how a student's performance relates to other students in their same school. But that's not all! Imagine we instead wanted to measure how much a student's performance is affected by the length of their commute to school. Our statistics methods will tell us the expected performance of a student with a zero-length commute, but that's kind of silly because no one lives at a public high school. If we subtract the average commute length from our data, then our baseline estimate is for the average commute time, and we can see how much increases in commute time affect student performance a little more clearly. That one is called grand mean centering. I know it may seem weird to change your data, but it can actually be really useful!
