@@ -11,10 +11,30 @@ editor:
     wrap: 80
 ---
 
+```{r, message = FALSE, warning = FALSE}
+library(haven) # read .sav file
+library(lme4)
+library(stargazer) # LaTeX tables
+library(performance) # ICC
+df <- read_sav("../data/popularmv.sav")
+```
+
 # 1
 In a univariate random intercept, random slope model, test the effect of SEX on student-rated
 popularity (POPULAR). Now test the effect of SEX on teacher-rated popularity (TEACHPOP).
 Interpret each set of results in isolation. [12]
+
+```{r}
+popular.res5 <- lme(popst~0+conss+sexs+const+sext,
+                    random=list(school=~0+conss+sexs+const+sext),
+                    weights=varIdent(form=~1|dv),
+                    data=df,
+                    method='ML',
+                    control=lmeControl(maxIter=300,msMaxIter=300,niterEM=100,msMaxEval=500)) #increase iterations for convergence
+summary(popular.res5)
+```
+
+
 
 # 2
 In a joint multivariate model that allows all intercepts and slopes to covary, but does not allow
