@@ -1,0 +1,66 @@
+---
+title: "Homework 7"
+author: "Langdon Holmes"
+date-modified: "today"
+subtitle: "ANOVA"
+format: pdf
+code-fold: false
+code-overflow: wrap
+editor: 
+  markdown: 
+    wrap: 80
+---
+
+Consider the Data in TraumaData.dat. The four groups are Stress inoculation therapy (SIT) group, Prolonged exposure (PE) group, Supportive counseling (SC) group (where participants learn a general problem solving technique) and Waiting list (WL) control group. The DV is a severity rating of symptoms, so smaller values are better outcomes.
+
+Use R or SPSS for the following. If you use R, copy and paste your code and output. If you use SPSS, present output tables. Note: you have to add your own words to address the questions. Outputs alone are incomplete.
+
+For R, remember to turn the IV into a factor before running your program. Double check the df in your ANOVA table.
+
+```{r}
+library(dplyr)
+df <- read.table("TraumaData.dat", header = TRUE)
+
+# I am assuming 1 = SIT, 2 = PE, 3 = SC, and 4 = WL (control)
+df$Group <- factor(df$Group, labels = c("SIT", "PE", "SC", "WL"))
+
+df %>%
+  group_by(Group) %>% 
+  summarize(mean = mean(Score),
+            sd = sd(Score))
+```
+
+
+## Run ANOVA, present ANOVA table and draw conclusion.
+
+```{r}
+model <- aov(Score ~ Group, data=df)
+summary(model)
+```
+The results of the one-way ANOVA are significant, indicating that there is sufficient evidence to reject the null hypothesis that all the group means are equal. This means that at least one treatment had an effect on symptom severity.
+
+## Run Tukey's HSD for all pairwise comparisons at FWER   = 0.05. Draw conclusions.
+
+```{r}
+TukeyHSD(model)
+```
+There is one significant pairwise comparison, between the control (WL) and the stress inoculation therapy (SIT) treatment groups. SIT reduces symptom severity compared to the control group.
+
+Using Tukey's HSD to protect family-wise error rate, there is insufficient evidence to support the efficacy of any other treatment.
+
+## Test the following family of two tests at FWER = 0.05 with Bonferroni correction:
+To protect family-wise error rate of a family of 2 tests, we can use a Bonferroni-adjusted alpha value of 0.025.
+
+### average treatment compared to control
+
+```{r}
+df$group_binary <- recode(df$Group, "WL" = "control",
+                          "SIT"="treatment", "PE"="treatment", "SC"="treatment")
+
+aov(Score ~ group_binary, p)
+```
+
+
+### average SIT and PE compared to SC, both in two-sided tests.
+
+
