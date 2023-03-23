@@ -1,0 +1,157 @@
+---
+title: "Homework 3"
+author: "Langdon Holmes"
+date-modified: "today"
+subtitle: "Non-Parametric Statistics"
+format: pdf
+code-fold: false
+code-overflow: wrap
+editor: 
+  markdown: 
+    wrap: 80
+---
+
+
+```{r}
+A <- c(4.09, 4.96, 4.72, 4.64, 3.14, 3.23)
+P <- c(3.51, 5.08, 5.48, 4.41, 3.31, 3.44)
+C <- c(4.37, 4.98, 4.66, 3.89, 1.61, 3.48)
+
+df <- data.frame(
+  group=factor(c(
+    rep("A", times=length(A)),
+    rep("P", times=length(P)),
+    rep("C", times=length(C))
+  )),
+  value=c(A, P, C))
+
+permute.cor <- function(x, y, n_permutations, method="pearson", lower=FALSE){
+  
+  distribution <- c()
+  
+  observed <- cor(x, y, method=method)
+  
+  for(i in 1:n_permutations){
+    y_permuted <- sample(y)
+    distribution[i] <- cor(x, y_permuted, method=method)
+  }
+  
+  result = quantile(distribution, c(.05,.95))
+  hist(distribution)
+  
+  if(lower==TRUE){
+    p_value = sum(distribution < observed)/n_permutations
+  } else {
+    p_value = sum(distribution > observed)/n_permutations
+  }
+  
+  return(p_value)
+}
+
+largesample.approx <- function(x, y, method="pearson", lower=FALSE) {
+  n = length(x)
+  r = cor(x, y, method=method)
+  if(method=="kendall"){
+    r_var = sqrt((4*n + 10)/(9*(n**2 - n)))
+  } else{
+    r_var = (1/sqrt(n - 1))
+  }
+  p = pnorm(r, mean = 0, sd = r_var, lower.tail = lower)
+  return(p)
+}
+
+```
+
+## 1. Compute the Pearson's correlation (r) of P and C. Test this correlation for significance using the standard parametric method, a random permutation method, and a large-sample approximation. To what extent do these tests agree? Interpret the correlation. [9]
+
+```{r}
+cor.test(P, C)
+
+cat("Permutation:                p =",
+    permute.cor(P, C, 10000, method="pearson"),
+    "\nLarge sample approximation: p =",
+    largesample.approx(P, C))
+
+```
+A Pearson correlation between Patriotism and Conservatism results in $r = 0.703, p = 0.119$. Using this test, we would fail to reject the null hypothesis and conclude that the two traits are not correlated. A permutation-based analysis results in $p \approx .03$, which would provide sufficient evidence to reject the null hypothesis and conclude that the traits are correlated. The large sample approximation results in $p = 0.058$, which is a higher p-value than the permutation analysis but lower than the standard test's p-value. The large sample approximation is also not significant.
+
+
+## 2. Compute Spearman's rho (rs) for P and C. Test this correlation for significance using a random permutation method and a large-sample approximation. To what extent do these tests agree? Interpret the correlation. [9]
+
+```{r}
+cor.test(P, C, method="spearman")
+
+cat("Permutation:                p =",
+    permute.cor(P, C, 10000, method="spearman"),
+    "\nLarge sample approximation: p =",
+    largesample.approx(P, C, method="spearman"))
+
+```
+A Spearman correlation between Patriotism and Conservatism results in $r_{s} = 0.886, p = 0.033$. Using this test, we would reject the null hypothesis and conclude that the two traits are correlated. A permutation-based analysis results in $p \approx .008$, which would indicate ample evidence to reject the null hypothesis and conclude the same. The large sample approximation results in $p = 0.024$, which is a higher p-value than the permutation analysis but lower than the standard test's p-value (and also significant).
+
+## 3. Compute Kendall's tau (rτ) for P and C. Test this correlation for significance using a random permutation method and a large-sample approximation. To what extent do these tests agree? Interpret the correlation. [9]
+
+```{r}
+cor.test(P, C, method="kendall")
+
+cat("Permutation:                p =",
+    permute.cor(P, C, 10000, method="kendall"),
+    "\nLarge sample approximation: p =",
+    largesample.approx(P, C, method="kendall"))
+```
+A Kendall correlation between Patriotism and Conservatism results in $\tau = 0.733, p = 0.056$. Using this test, we would fail to reject the null hypothesis and conclude that the two traits are not correlated. However, a permutation-based analysis results in $p \approx .008$ (almost the same as the permuted Spearman p-value), which would indicate ample evidence to reject the null hypothesis and conclude that there is a correlation between Patriotism and Conservatism. The large sample approximation results in $p = 0.019$, which is a higher p-value than the permutation analysis, but still significant.
+
+## 4. Using Spearman's rho as the measure of correlation (r in the formula), determine the extent to which the relationship between patriotism and conservatism can be explained by authoritarianism. [13]
+
+```{r}
+library(ppcor)
+pcor.test(P, C, A, method="spearman")
+
+# or, the hard way:
+cor.partial <- function(x, y, z, method = "spearman"){
+  r_xy <- cor(x, y, method = method)
+  r_xz <- cor(x, z, method = method)
+  r_yz <- cor(y, z, method = method)
+  
+  numerator <- r_xy - r_xz*r_yz
+  
+  # add smallest possible value to avoid zero division when permuting later.
+  denominator <- sqrt((1-r_xz**2)*(1-r_yz**2)) + .Machine$double.xmin
+  
+  r_xy_z <-  numerator / denominator 
+  return(r_xy_z)
+}
+
+cat("Partial Correlation rho =", cor.partial(P, C, A))
+
+```
+
+The partial correlation between Patriotism and Conservatism is not explained by Authoritarianism, $r_{s} = -0.0294, p = 0.963$. 
+
+## Extra credit: Devise a way to test the partial correlation in (4) for significance using permutation in Resampling Stats, use this method, and interpret the results. [4]
+
+```{r}
+permute.cor.partial <- function(x, y, ctrl, n_permutations, method="spearman"){
+  
+  distribution <- c()
+  
+  observed <- cor.partial(x, y, ctrl, method=method)
+  
+  for(i in 1:n_permutations){
+    y_permuted <- sample(y)
+    distribution[i] <- cor.partial(x, y_permuted, ctrl, method=method)
+  }
+  
+  hist(distribution)
+  
+  p_value = sum(distribution < observed)/n_permutations
+  
+  return(p_value)
+}
+
+cat("Permutation:p =", permute.cor.partial(P, C, A, 10000))
+```
+
+Using a resampling strategy, the probability of finding a more extreme rho value is $p \approx 0.5$ which means there is insufficient evidence to reject the null hypothesis. This means that Authoritarianism does not explain the relationship between Patriotism and Conservatism. 
+
+The distribution of rho values with permutations of Conservatism does not look normally distributed, so I may have made a mistake, or there may be a problem with this approach.
