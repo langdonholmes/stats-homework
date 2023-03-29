@@ -1,0 +1,201 @@
+---
+title: "Homework 8"
+author: "Langdon Holmes"
+date-modified: "today"
+subtitle: "ANOVA"
+format: pdf
+code-fold: false
+code-overflow: wrap
+editor: 
+  markdown: 
+    wrap: 80
+---
+
+```{r, message=FALSE, output=FALSE}
+library("WebPower")
+library(dplyr)
+```
+
+| Condition | Treatment | Treatment | Control | Control |
+|-----------|-----------|-----------|---------|---------|
+| Raised by | Mom       | Dad       | Mom     | Dad     |
+| Mean      | 25.8      | 26.3      | 23      | 20.3    |
+| S.D.      | 3.6       | 5         | 4       | 4.5     |
+
+|       | Treatment | Control | means |
+|-------|-----------|---------|-------|
+| Mom   | 25.8      | 23      | 24.4  |
+| Dad   | 26.3      | 20.3    | 23.3  |
+| means | 26.05     | 21.65   | 23.85 |
+
+## 1.1 Test the two main effects and the interaction effect. Draw conclusions in terms of the problem. For the interaction effect, calculate SS by subtracting from SScells. Show your work.You don't need to present an ANOVA table or state the hypotheses.
+
+```{r}
+n <- 43
+N <- 43*4
+grand_mean <- 23.85
+cell_means <- c(25.8, 23, 26.3, 20.3)
+
+# Cell
+df_cell <- 4-1
+SS_cell <- n*sum((cell_means-grand_mean)**2)
+MS_cell <- SS_cell / df_cell
+
+# Error
+df_error <- N-4
+cell_sds <- c(3.6, 5, 4, 4.5)
+SS_error <- df_cell*sum(cell_sds**2)
+MS_error <- SS_error / df_error
+
+
+# Sum of Squares total
+df_total <- N-1
+SS_total <- SS_cell + SS_error
+
+# Main effect of parent
+parent_means <- c(24.4, 23.3)
+df_parent <- 2-1
+SS_parent <- 86*sum((parent_means-grand_mean)**2)
+MS_parent <- SS_parent / df_parent
+F_parent <- MS_parent / MS_error
+
+
+# Main effect of treatment
+treatment_means <- c(26.05, 21.65)
+df_treatment <- 2-1
+SS_treatment <- 86*sum((treatment_means-grand_mean)**2)
+MS_treatment <- SS_treatment / df_treatment
+F_treatment <- MS_treatment / MS_error
+
+
+# Interaction Effect
+treatment_means <- c(26.05, 21.65)
+df_interaction <- df_parent*df_treatment
+SS_interaction <- SS_cell - SS_parent - SS_treatment
+MS_interaction <- SS_interaction / df_interaction
+F_interaction <- MS_interaction / MS_error
+
+```
+
+```{r}
+#| echo: false
+#| output: asis
+cat("$SS_{cell}$:", SS_cell,
+    "  \n$MS_{cell}$:", MS_cell,
+    "  \n$SS_{error}$:", SS_error,
+    "  \n$MS_{error}$:", MS_error,
+    "  \n$SS_{total}$:", SS_total,
+    "  \n$SS_{parent}$:", SS_parent,
+    "  \n$MS_{parent}$:", MS_parent,
+    "  \n$F_{parent}$:", F_parent, 
+    "p-value:", pf(F_parent, df_parent, df_error, lower.tail = FALSE),
+    "  \n$SS_{treatment}$:", SS_treatment,
+    "  \n$MS_{treatment}$:", MS_treatment,
+    "  \n$F_{treatment}$:", F_treatment, 
+    "p-value:", pf(F_treatment, df_treatment, df_error, lower.tail = FALSE),
+    "  \n$SS_{interaction}$:", SS_interaction,
+    "  \n$MS_{interaction}$:", MS_interaction,
+    "  \n$F_{parent	\\times treatment}$:", F_interaction,
+    "p-value:", pf(F_interaction, df_interaction, df_error, lower.tail = FALSE)
+    )
+
+
+```
+
+It's not clear to me if I should discuss the main effects, since the interaction
+is significant. I am discussing them anyway because I am afraid I will lose
+points if I do not, but please note I am aware that we typically do not
+interpret main effects when the interaction is significant.
+
+The main effect of parent is significant. Children raised by single mothers
+perform better on the task than children raised by single fathers. The main
+effect of treatment is significant. Children in the treatment group perform
+better than children in the control group.
+
+The interaction between treatment and parent is significant. This means that the
+effect of treatment on child performance varies according to the gender of the
+child's parent.
+
+## 1.2. Calculate the complete $\omega^{2}$ for the treatment factor and the partial $\omega^{2}$ for the interaction.
+
+```{r}
+est_var_treatment <- (df_treatment/N)*(MS_treatment - MS_error)
+est_var_total <- (1/N)*(SS_total + MS_error)
+
+omega_sq_treatment <- est_var_treatment / est_var_total
+
+est_var_interaction <- (df_interaction/N)*(MS_interaction - MS_error)
+omega_sq_partial_interaction <- est_var_interaction / est_var_total
+
+```
+
+```{r}
+#| echo: false
+#| output: asis
+cat("  \n$\\hat{\\sigma}^{2}_{total}$:", est_var_total,
+    "$\\hat{\\sigma}^{2}_{treatment}$:", est_var_treatment,
+    "  \n$\\hat{\\omega}^{2}_{treatment}$:", omega_sq_treatment,
+    "  \n$\\hat{\\sigma}^{2}_{parent \\times treatment}$:", est_var_interaction,
+    "  \n$\\hat{\\omega}^{2}_{<parent \\times treatment>}$:", omega_sq_partial_interaction
+    )
+```
+
+## 1.3 Use WebPower, find the power of this design (2 × 2 with per cell sample size n = 43) to detect an interaction effect of partial $\omega^{2}$ = 0.1. Show a screen shot.
+
+WebPower needs effect size in terms of $f$, which is related to $\omega^{2}$ by
+$f = \sqrt{\frac{\omega^{2}}{1 - \omega^{2}}}$
+
+```{r}
+omega_sq <- 0.1
+f <- sqrt(omega_sq / (1 - omega_sq))
+wp.anova(k=4, n=N, f=0.33, type="two.sided")
+```
+
+## 1.4 Suppose by literature review you found that the main effect of Parental situation has partial $\omega^{2}$ = 0.05 and the interaction has partial $\omega^{2}$ = 0.03. What is the partial $\omega^{2}$ of the main effect of Condition corresponding to a complete $\omega^{2}$ of 0.06?
+
+Given that $\hat{\omega}^{2}_{<parent>} = 0.05$, we know that $\sigma^2_{parent} = \frac{\sigma^2}{19}$.
+Given that $\hat{\omega}^{2}_{<parent \times condition>} = 0.03$, we know that $\sigma^{2}_{<parent \times condition>} = \frac{3\sigma^2}{97}$. $\omega^{2}_{condition} = 0.06$, so we can plug in the above definitions of $\sigma^2_{parent}$ and $\sigma^{2}_{<parent \times condition>}$ to the equation for the total variance, which we can solve for $\sigma^2_{condition} = \frac{5991\sigma^2}{86621}$. Finally, we plug this in to the equation for the complete omega squared, which gives us $\omega^{2}_{condition} = 0.065$.
+
+# 2. Before working on the following set of problems, review what happens in the population if there is no main effect of a factor, or if there is no simple effect of a factor at an level of another factor, or if there is no interaction. Briefly show your reasoning.
+
+## 2.1. Below is a table of population cell means. Neither B nor A has a main effect. Find the missing entries. (Hint: calculate the values in the order of their labels.)
+
+|      | B1  | B2  | B3  | Mean |
+|------|-----|-----|-----|------|
+| A1   | 32  | -7  | -9  | -6   |
+| A2   | 56  | 61  | -8  | -5   |
+| Mean | -1  | -2  | -3  | -4   |
+
+1. 44, average calculated from given data.
+2. 44, must be same as (1) because no main effect of B.
+3. 44, must be same as (1) because no main effect of B.
+4. 44, average of (1), (2), (3).
+5. 44, must be same as (4) because no main effect of A.
+6. 44, must be same as (4) because no main effect of A.
+7. 27, must average with 61 to produce (2).
+8. 15, must average with 56 and 61 to produce (5).
+9. 73, must average with 32 and (7) to produce (6).
+
+## 2.2. In the following table of population cell means, the two factors have no interaction effect. Find the missing entries.
+
+|     | B1  | B2  | B3  |
+|-----|-----|-----|-----|
+| A1  | 32  | 27  | -2  |
+| A2  | 56  | -1  | 15  |
+
+1. 51, the main effect of A is +24 with no interaction.
+2. -9, the main effect of A is +24 with no interaction.
+
+## 2.3. In the following table of population cell means, factor A has no simple effect at level B1, factor B has no simple effect at level A2, and factor A has no main effect. Find the missing entries.
+
+|     | B1  | B2  | B3  | mean |
+|-----|-----|-----|-----|------|
+| A1  | -1  | -2  | 37  | -5   |
+| A2  | 32  | -3  | -4  | -6   |
+
+1. 32, B1 is same at all levels of A because no simple effect.
+2. 27, must average with (1) and 37 to get (5).
+3. 32, A2 is same at all levels of B because no simple effect.
+4. 32, A2 is same at all levels of B because no simple effect.
+5. 32, same as (6) because no main effect of A.
+6. 32, average of 32, (3), and (4).
