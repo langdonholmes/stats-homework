@@ -1,0 +1,134 @@
+---
+title: "Homework 4"
+author: "Langdon Holmes"
+date-modified: "today"
+subtitle: "Non-Parametric Statistics"
+format: pdf
+code-fold: false
+code-overflow: wrap
+editor: 
+  markdown: 
+    wrap: 80
+---
+
+## 1. In a study of contamination of farm wells, contaminated water was classified as either “low contamination” or “high contamination,” and the distance of the well from a potential source of organic contamination was classified as either “nearby” or “not nearby.” Results are shown in the table. Test for significant association between contamination and distance using Fisher’s exact test. [10]
+
+|      | Nearby | Not Nearby |
+|------|--------|------------|
+| Low  | 4      | 3          |
+| High | 9      | 0          |
+
+
+```{r}
+wells <- data.frame(
+  "nearby" = c(4, 9),
+  "far" = c(3, 0),
+  row.names = c("low", "high"),
+  stringsAsFactors = FALSE
+)
+
+fisher.test(wells)
+
+```
+I ran a Fisher's Exact Test on the well contamination data. The null hypothesis is that the contamination level of the well is independent of the well's distance from a potential source of contamination. The test was not significant, $p = 0.0625$, so we do not have sufficient evidence to reject the null.
+
+## 2. Test for association between the English and mathematics grades of the 56 college applicants using a $\chi^2$ test of independence. [10]
+
+|       | EnglishA | EnglishB | EnglishC |
+|-------|----------|----------|----------|
+| MathA | 6        | 8        | 8        |
+| MathB | 4        | 12       | 12       |
+| MathC | 1        | 3        | 2        |
+
+
+```{r}
+grades <- data.frame(
+  "A" = c(6, 4, 1),
+  "B" = c(8, 12, 3),
+  "C" = c(8, 12, 2),
+  row.names = c("A", "B", "C"),
+  stringsAsFactors = FALSE
+)
+
+chisq.test(grades, correct=FALSE)
+```
+I ran a $\chi^2$ test to test for independence of math grades and English grades among college applicants. The null hypothesis is that there is no relationship between math grades and English grades. The test was insignificant, so there is insufficient evidence to reject the null hypothesis. I ran this test in R, which helpfully points out that the approximation be incorrect. This may be related to the low number of observations in the data. More specifically, the expected values for the first column and the last row are less than 5.
+
+```{r}
+# borrowed some of this code from the CRAN Archive...
+# https://cran.r-project.org/src/contrib/Archive/GmAMisc/
+# (package is archived; no longer listed on CRAN)
+# r2dtable is where the permutation happens (holding marginal totals constant)
+# uses an algorithm from Patefield, W. M. (1981). 10.2307/2346669.
+
+chiperm <- function(data, B=10000, thresh=1.96){
+  rowTotals <- rowSums(data)
+  colTotals <- colSums(data)
+
+  obs.chi.value <- suppressWarnings(chisq.test(data))$statistic
+
+  chistat.perm <- vector(mode = "numeric", length = B)
+  chi.statistic <- function(x)  suppressWarnings(chisq.test(x))$statistic
+  
+  chistat.perm <- sapply(r2dtable(B, rowTotals, colTotals), chi.statistic)
+
+  p.lowertail <- (1 + sum (chistat.perm < obs.chi.value)) / (1 + B)
+  p.uppertail <- (1 + sum (chistat.perm > obs.chi.value)) / (1 + B)
+  two.sided.p <- 2 * min(p.lowertail, p.uppertail)
+
+  p.to.report <- round(two.sided.p, 3)
+
+  graphics::hist(
+    chistat.perm,
+    main="Chi-square statistic Permuted Distribution",
+    sub=paste0(
+      "\nRed line: observed chi-sq (", round(obs.chi.value, 3), ")",
+      "\nDashed line: 95th percentile of the permuted chi-sq (",
+      round(quantile(chistat.perm, c(0.95)),3), ")",
+      "\np value: ", p.to.report, " (n. of permutations: ", B,")"),
+       xlab = "",
+       cex.main=0.85,
+       cex.sub=0.70)
+  rug(chistat.perm, col = "#0000FF")
+  abline(v = obs.chi.value, lty = 1, col = "red")
+  abline(v = round(quantile(chistat.perm, c(0.95)), 5), lty = 2, col = "blue")
+}
+
+chiperm(grades)
+```
+I ran a permutation-based $\chi^2$ to test the same hypothesis. This was fun, and we have a pretty graph now, but the results are still insignificant.
+
+## 3. Repeat #2 using a 3x3 Fisher’s exact test (try fisher.test in R). Comment on any similarities or differences between these results and those from the $\chi^2$ test. [10]
+
+```{r}
+fisher.test(grades)
+```
+
+I tested the same hypothesis on the college applicants' grades using a Fisher's Exact test, which resulted in a p-value close to Pearson's $\chi^2$.
+
+## 4. Below is a table reporting frequencies of subjects who got a test item correct (vs. incorrect) before training and correct (vs. incorrect) after training. It appears that training helped subjects move from “incorrect” to “correct.” Test the hypothesis that the proportion of subjects who move from correct to incorrect differs from the proportion of subjects who move from incorrect to correct. [10]
+
+|                  | Correct After | Incorrect After |
+|------------------|---------------|-----------------|
+| Correct   Before | 1             | 1               |
+| Incorrect Before | 8             | 2               |
+
+
+```{r}
+A <- 1
+B <- 1
+C <- 8
+D <- 2
+
+mcnemar_t <- (B - C)**2 / (B + C)
+cat("McNemar's T:", mcnemar_t,
+    "p-value:", pchisq(mcnemar_t, 1, lower.tail=FALSE))
+
+mcnemar_corrected_t <- (abs(B - C) - 1)**2 / (B + C)
+cat("\nMcNemar's T with Correction:", mcnemar_corrected_t,
+    "p-value:", pchisq(mcnemar_corrected_t, 1, lower.tail=FALSE))
+
+```
+I first ran McNemar's test (uncorrected), which results in a significant p-value. The hypothesis here is that training has an effect on the correctness of the subjects' responses. The null hypothesis is that the the same number of people changed in the correctness of their response before and after training. We have sufficient evidence to reject that null hypothesis.
+
+However, McNemar suggested that B + C should be at least 10, and we only have 9 observations in these cells. I applied the correction suggested by some (no date), which makes the test more conservative for small samples such as this. The test is still significant! So we can safely conclude that training has an effect on test response correctness.
