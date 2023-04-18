@@ -3,6 +3,8 @@
 .RData
 .Ruserdata
 .ipynb_checkpoints
-stats_homework.Rproj
+*.dat
+*.pdf
+.Rproj
 renv
 data
