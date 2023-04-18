@@ -1,0 +1,2 @@
+N	 n	 zLb0	 zpb0	 zUb0	 sLb0	 spb0	 sUb0	 zLb1	 zpb1	 zUb1	 sLb1	 spb1	 sUb1	 zLb2	 zpb2	 zUb2	 sLb2	 spb2	 sUb2
+40	 10	 0	 0	 0	 0.05	 0.05	 0.05	 0.313	 0.348	 0.383	 0.341	 0.345	 0.349	 0.983	 0.99	 0.997	 0.992	 0.993	 0.993

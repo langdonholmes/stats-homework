@@ -13,7 +13,6 @@ editor:
 
 ```{r, message=FALSE, output=FALSE}
 library("WebPower")
-library(dplyr)
 ```
 
 | Condition | Treatment | Treatment | Control | Control |
@@ -154,7 +153,7 @@ wp.anova(k=4, n=N, f=0.33, type="two.sided")
 ## 1.4 Suppose by literature review you found that the main effect of Parental situation has partial $\omega^{2}$ = 0.05 and the interaction has partial $\omega^{2}$ = 0.03. What is the partial $\omega^{2}$ of the main effect of Condition corresponding to a complete $\omega^{2}$ of 0.06?
 
 Given that $\hat{\omega}^{2}_{<parent>} = 0.05$, we know that $\sigma^2_{parent} = \frac{\sigma^2}{19}$.
-Given that $\hat{\omega}^{2}_{<parent \times condition>} = 0.03$, we know that $\sigma^{2}_{<parent \times condition>} = \frac{3\sigma^2}{97}$. $\omega^{2}_{condition} = 0.06$, so we can plug in the above definitions of $\sigma^2_{parent}$ and $\sigma^{2}_{<parent \times condition>}$ to the equation for the total variance, which we can solve for $\sigma^2_{condition} = \frac{5991\sigma^2}{86621}$. Finally, we plug this in to the equation for the complete omega squared, which gives us $\omega^{2}_{condition} = 0.065$.
+Given that $\hat{\omega}^{2}_{<parent \times condition>} = 0.03$, we know that $\sigma^{2}_{<parent \times condition>} = \frac{3\sigma^2}{97}$. $\omega^{2}_{condition} = 0.06$, so we can plug in the above definitions of $\sigma^2_{parent}$ and $\sigma^{2}_{<parent \times condition>}$ to the equation for the total variance, which we can solve for $\sigma^2_{condition}$, getting $\frac{5991\sigma^2}{86621}$. Finally, we plug this in to the equation for the complete omega squared of the condition factor, which gives us $\omega^{2}_{condition} \approx 0.065$.
 
 # 2. Before working on the following set of problems, review what happens in the population if there is no main effect of a factor, or if there is no simple effect of a factor at an level of another factor, or if there is no interaction. Briefly show your reasoning.
 
@@ -183,8 +182,8 @@ Given that $\hat{\omega}^{2}_{<parent \times condition>} = 0.03$, we know that $
 | A1  | 32  | 27  | -2  |
 | A2  | 56  | -1  | 15  |
 
-1. 51, the main effect of A is +24 with no interaction.
-2. -9, the main effect of A is +24 with no interaction.
+1. 51, the difference between levels of A is the same across levels of B because there is no interaction.
+2. -9, the difference between levels of A is the same across levels of B because there is no interaction.
 
 ## 2.3. In the following table of population cell means, factor A has no simple effect at level B1, factor B has no simple effect at level A2, and factor A has no main effect. Find the missing entries.
 

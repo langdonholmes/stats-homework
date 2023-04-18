@@ -17,8 +17,12 @@ Use R or SPSS for the following. If you use R, copy and paste your code and outp
 
 For R, remember to turn the IV into a factor before running your program. Double check the df in your ANOVA table.
 
-```{r}
+```{r, message=FALSE, output=FALSE}
 library(dplyr)
+```
+
+
+```{r}
 df <- read.table("TraumaData.dat", header = TRUE)
 
 # I am assuming 1 = SIT, 2 = PE, 3 = SC, and 4 = WL (control)
@@ -54,13 +58,26 @@ To protect family-wise error rate of a family of 2 tests, we can use a Bonferron
 ### average treatment compared to control
 
 ```{r}
-df$group_binary <- recode(df$Group, "WL" = "control",
-                          "SIT"="treatment", "PE"="treatment", "SC"="treatment")
-
-aov(Score ~ group_binary, p)
+df$group_binary <- recode(df$Group,
+                          "WL" = "control",
+                          "SIT"="treatment",
+                          "PE" ="treatment",
+                          "SC" ="treatment")
+t.test(Score ~ group_binary, data=df)
 ```
-
+Controlling for family-wise error rate by setting our effective p-value cutoff to 0.025, there is no significant difference between the treatment and control groups. 
 
 ### average SIT and PE compared to SC, both in two-sided tests.
 
+```{r}
 
+df.treatment <- subset(df, group_binary == "treatment")
+
+df.treatment$sit_pe.sc <- recode(df.treatment$Group,
+                                 "SIT"="SIT_PE",
+                                 "PE" ="SIT_PE",
+                                 "SC" ="SC")
+
+t.test(Score ~ sit_pe.sc, data=df.treatment)
+```
+Controlling for family-wise error rate by setting our effective p-value cutoff to 0.025, there is no significant difference between the SIT+PE treatment group and the SC treatment group. 
