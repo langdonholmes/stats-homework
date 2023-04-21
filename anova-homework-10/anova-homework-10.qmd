@@ -141,42 +141,20 @@ summary(fit)
 | 150ms        | 28     | 26.8   | 26.4   | 27.07     |
 | Column Means | 28.2   | 22.2   | 22.27  | 24.22     |
 
-$\hat\psi = (16.8 - 24.4) - (23.0 - 16.0) = -14.6$  
-$df = (5 \times 9) - 9 = 36$  
-$SE = \sqrt{MS_{error} \times 4/n} = \sqrt{29.311 \times (1+1+1+1)/5} = 4.84$  
-$t = \hat\psi / SE = -14.6 / 4.84 = -3.016529$  
-
 ```{r}
-p <- pt(q = -3.016529, df = 36, lower.tail=TRUE)
-print(p)
-# multiply by 2 since this is not a directional hypothesis.
-print(p*2)
+library(emmeans)
+
+emms <- emmeans(fit, specs = ~ Area*Lag, adjust="none")
+interaction_contrasts <- contrast(emms,
+                                  list(Lag=c(1, -1, 0),
+                                       Area=c(0, 1, -1)),
+                                  interaction="consec")
+print(interaction_contrasts[2])
 ```
-The two-sided, unadjusted p-value is 0.005.
 
 ### 3d obtain unadjusted two-sided p-values for the family of 6 pairwise comparisons in the simple effects of Area (those in Problem 2 of HW9).
 
-I am borrowing the t-statistics from HW9. Hopefully that is allowed. And the p-values are calculated below.
-
 ```{r}
-#| output: asis
-# All p-values are multiplied by 2 because these are two-sided tests.
-p <- pt(q = 3.45, df = 36, lower.tail=FALSE)*2
-cat(sprintf("$t_{50A} = 3.45, p = %1.3f$  \n", round(p, 3)))
-
-p <- pt(q = 1.23, df = 36, lower.tail=FALSE)*2
-cat(sprintf("$t_{50B} = 1.23, p = %1.3f$  \n", round(p, 3)))
-
-p <- pt(q = 1.46, df = 36, lower.tail=FALSE)*2
-cat(sprintf("$t_{100A} = 1.46, p = %1.3f$  \n", round(p, 3)))
-
-p <- pt(q = 3.50, df = 36, lower.tail=FALSE)*2
-cat(sprintf("$t_{100B} = 3.50, p = %1.3f$  \n", round(p, 3)))
-
-p <- pt(q = 0.35, df = 36, lower.tail=FALSE)*2
-cat(sprintf("$t_{150A} = 0.35, p = %1.3f$  \n", round(p, 3)))
-
-p <- pt(q = 0.47, df = 36, lower.tail=FALSE)*2
-cat(sprintf("$t_{150B} = 0.47, p = %1.3f$  \n", round(p, 3)))
+pairwise_contrasts <- pairs(emms, simple="Area", adjust="none")
+pairwise_contrasts[-c(3,6,9)]
 ```
-

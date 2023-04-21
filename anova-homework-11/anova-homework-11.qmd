@@ -12,12 +12,24 @@ editor:
 ---
 
 
-```{r, message=FALSE, output=FALSE, echo=FALSE}
+```{r, message=FALSE, output=FALSE}
 library(dplyr)
-library("WebPower")
+library(car)
+behavior <- read.table("BehaviorRating.dat", header = TRUE)
+ptsd <- read.table("PTSDmixed.dat", header = TRUE)
 ```
 
-### 1.1 Complete the table (with sphericity assumption). Show your work. Obtain the p-value of the F test.
+## 1.1 
+
+```{r}
+multi.fit <- lm(cbind(Subject, Parent, Teacher, Self) ~ 1,
+                data = behavior)
+# Anova(multi.fit, idata=data.frame(colnames(behavior)), idesign=~colnames(behavior))
+measures <- as.factor(1:4)
+multi.aov <- Anova(multi.fit, idata=data.frame(measures), idesign=~measures, type=3)
+summary(multi.aov)
+```
+
 
 |             | SS   | df | MS | F |
 |-------------|------|----|----|---|
