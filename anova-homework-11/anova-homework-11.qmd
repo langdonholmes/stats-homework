@@ -11,184 +11,216 @@ editor:
     wrap: 80
 ---
 
-
 ```{r, message=FALSE, output=FALSE}
-library(dplyr)
+library(tidyverse)
+library(emmeans)
 library(car)
 behavior <- read.table("BehaviorRating.dat", header = TRUE)
-ptsd <- read.table("PTSDmixed.dat", header = TRUE)
+ptsd <- read.table("PTSDmixed.dat", header = TRUE) %>%
+  mutate(Group = factor(Group,
+                        labels=c(
+                          "Stress Inoculation",
+                          "Prolonged Exposure",
+                          "standard Support Counseling")
+                        )
+         )
 ```
 
-## 1.1 
+## 1.1 Present outputs, corrections, draw conclusions.
 
-```{r}
-multi.fit <- lm(cbind(Subject, Parent, Teacher, Self) ~ 1,
+```{r, message=FALSE, warning=FALSE}
+behav.lm <- lm(cbind(Parent, Teacher, Self) ~ 1,
                 data = behavior)
-# Anova(multi.fit, idata=data.frame(colnames(behavior)), idesign=~colnames(behavior))
-measures <- as.factor(1:4)
-multi.aov <- Anova(multi.fit, idata=data.frame(measures), idesign=~measures, type=3)
-summary(multi.aov)
+measures <- as.factor(c("Parent", "Teacher", "Self"))
+behav.aov <- Anova(behav.lm,
+                   idata=data.frame(measures),
+                   idesign=~measures,
+                   type=3)
+behav.summary <- summary(behav.aov)
 ```
 
 
-|             | SS   | df | MS | F |
-|-------------|------|----|----|---|
-| Treatment   | 150  | 3  | 50 | 5 |
-| Subject     | 900  | 9  | 100|   |
-| Interaction | 270  | 27 | 10 |   |
-| Total       | 1320 |    |    |   |
+```{r, echo=FALSE}
+cat("\nResponse transformation matrix:\n")
+print(behav.summary$multivariate.tests$measures$P) # Uncorrected
+cat("\nUncorrected Univariate Test:\n")
+print(behav.summary$univariate.tests) # Assumes sphericity
+cat("\nMauchly's test:\n")
+print(behav.summary$sphericity.tests) # Mauchly's (not violated)
+cat("\nCorrected tests:\n")
+print(behav.summary$pval.adjustments[,]) # Corrected
+```
 
-Sample Descriptives:  
-$k = df_{\tau} + 1 = 4$  
-$n = df_{\pi} + 1 = 10$  
+Mauchly's test of sphericity assesses whether the assumption of sphericity is
+violated. A significant p-value is evidence that the assumption has been
+violated. In this case, the test is not significant, but the results are not
+reliable, so we can use the Greenhouse-Geisser correction anyway. The test is
+significant, which indicates that behavior ratings differ between at least one pairing of parents,
+teachers, and student self-assessments.
 
-Treatment:  
-$MS_{\tau} = \frac{SS_{\tau}}{df_{\tau}} = \frac{150}{3} = 50$  
-
-Subject:  
-$MS_{\pi} = \frac{SS_{\pi}}{df_{\pi}} = \frac{900}{9} = 100$  
-
-Interaction:  
-$SS_{\pi\tau} = SS_{T} - SS_{\pi} - SS_{\tau} = 1,320 - 900 - 150 = 270$  
-$df_{\pi\tau} = (k-1)(n-1) = 27$  
-$MS_{\pi\tau} = \frac{SS_{\pi\tau}}{df_{\pi\tau}} = \frac{270}{27} = 10$  
-
-$F = \frac{MS_{\tau}}{MS_{\pi\tau}} = \frac{50}{10} = 5$  
+## 1.2 Recover the ANOVA table
 
 ```{r}
-# pf is for p-values
-# qf is for critical values
-cat(pf(q = 5, df1 = 3, df2 = 27, lower.tail = FALSE),
-    qf(p=.05, df1 = 3, df2 = 27, lower.tail = FALSE))
+SS_total <- 140.2 + 1568.8 + 155.1 # = 1,864.1
 ```
-$F_{3,27,.05} = 2.96, p = 0.007$  
 
-There is a significant effect of treatment. I don't believe we can say in which direction with the given summary statistics.
+I calculated the total sum of squares above. Mean squares are the sum of squares divided by their respective degrees of freedom. The other values were pulled directly from the Anova output in 1.1.
 
-### 1.2 How many subjects are there? How many treatments are there?
+|             | SS     | df  | MS    | F     |
+|-------------|--------|-----|-------|-------|
+| Rater       | 140.2  | 2   | 70.12 | 17.18 |
+| Subject     | 1568.8 | 19  |       |       |
+| Interaction | 155.1  | 38  | 4.08  |       |
+| Total       | 1864.1 | 59  |       |       |
 
-There are 10 subjects (n) and 4 treatments (k). I showed "calculations" in 1.1.
+## 1.3 Present multivariate tests
 
-### 1.3 Calculate $\hat\omega^2$.
+```{r, echo=FALSE}
+print(behav.summary$multivariate.tests$measures)
+```
 
-$\hat\omega^2 = \frac{SS_{\tau} - (k-1)MS_{\pi\tau}}{SS_T+MS_\pi} = \frac{150 - 3(10)}{1,320+100} = \frac{120}{1,420} = .085$  
+The multivariate tests produce equivalent results. They are significant, indicating that at least two of the
+respondent types (parent, teacher, self) produced different means.
 
-### 1.4 Suppose the correction factor for sphericity is $\hat\epsilon = 0.6$, what is the F statistic? What is its sampling distribution? Find p-value.
+## 1.4 Test pairwise comparisons using Bonferroni
 
 ```{r}
-# pf is for p-values
-# qf is for critical values
-cat(pf(q = 5, df1 = .06*3, df2 = .06*27, lower.tail = FALSE),
-    qf(p=.05, df1 = .06*3, df2 = .06*27, lower.tail = FALSE))
+emms <- emmeans(behav.lm, ~ rep.meas, adjust="none")
+# unadjusted
+print(pairs(emms, adjust="none"))
 ```
-$F_{\epsilon*3,\epsilon*27,.05} = F_{.18,1.62,.05} = 19.03, p = 0.11$  
 
-With the sphericity adjustment, the main effect of treatment is not significant.
-
-## 2. Consider a within-subject design with 30 subjects repeated measured under 3 conditions.
-
-### 2.1 Suppose a computer program calculated two estimates of the correction factor $\epsilon: 0.6$ and 0.75. Which is Huynh-Feld estimate and which is Greenhouse-Geisser estimate? Calculate the lower bound estimate.
-
-Greenhouse-Geisser tends to underestimate $\epsilon$, so that is likely to result in the lower value of 0.6.
-
-The lower bound estimate is $\epsilon = 1/(k-1) = \frac{1}{3} = 0.\overline{33}$. This is even more conservative than Greenhouse-Geisser.
-
-### 2.2 What is the power of this design to detect $\omega^{2} = 0.1$? Assume $\epsilon = 0.6$ and $\rho = 0.5$. Present screenshots of WebPower.
 
 ```{r}
-# d = 0.5
-omega <- 0.1
-rho <- 0.5
-f <- sqrt( 3 * omega/(1-omega) * 1/(1-rho) )
-print(f)
-wp.rmanova(ng=1, # num groups
-           n=30, # subjects
-           nm=3, # number of measurements
-           nscor=0.6, # nonsphericity correction coefficient
-           f=f,
-           type=1 # 1 = "Within Effect"
-           )
+# Bonferroni
+print(pairs(emms, adjust="bonferroni"))
 ```
 
-## 3. In the attachment you find the data from the Brain Area experiment described in HW9. The three levels 1, 2 and 3 of Area are N, A and B brain areas. The three levels 1, 2 and 3 of Lag are 50, 100 and 150ms. Do the following using SPSS or R.
+Pairwise contrasts between respondent types reveal that there is no significant
+difference between parents' and teachers' opinions of a student's behavior, but
+students rate their own behavior higher than both parents and teachers.
+Students' self-ratings of behavior diverge more from their parents than from
+their teachers.
+
+## 2.1 Construct an ANOVA table.
+
+```{=tex}
+\begin{table}[h!]
+\begin{tabular}{lllll}
+\hline
+                         & SS      & df      & MS      & F     \\ \hline
+Subject                  & 60      & 23      &         &       \\
+\hspace{1em}G            & 21      & 2       & 10.5    & 5.65  \\
+\hspace{1em}Subject in G & 39      & 21      & 1.86    &       \\
+R                        & 36      & 3       & 12      & 12.6  \\
+RxS                      & 150     & 69      &         &       \\
+\hspace{1em}RxG          & 90      & 6       & 15      & 15.75 \\
+\hspace{1em}RxS in G     & 60      & 63      & 0.95    &       \\ \hline
+Total                    & 246     & 95      &         &       \\ \hline
+\end{tabular}
+\end{table}
+```
+
+
+```{r, output=FALSE}
+r=4 # Treatments
+g=3 # Groups
+n=8 # Subjects
+
+# Degrees of Freedom
+g*n - 1 # df S = 23
+g - 1 # df G = 2
+g*(n - 1) # df S(G) = 21
+r - 1 # df R = 3
+(r - 1)*(n*g - 1) # df RxS = 69
+(r - 1)*(g - 1) # df RxG = 6
+g*(r - 1)*(n - 1) # df RxS(G) = 63
+g*n*r - 1 # df Total = 95
+
+# Sum of Squares
+60 - 21 # SS S(G) = 39
+90 + 60 # SS RxS is sum of SS for RxG and RxS(G) = 150
+60 + 36 + 150 # SS_Total is sum of SS for Subject, Treatment, Interaction = 246
+
+# Mean Squares
+21 / 2 # MS G = 10.5
+39 / 21 # MS S(G) = 1.857143
+36 / 3 # MS R = 12
+90 / 6 # MS RxG = 15
+60 / 63 # MS RxS(G) = 0.952381
+
+# F Statistics
+10.5 / 1.857143 # F for G = 3.4668
+12 / 0.952381 # F for R = 1.603796
+15 / 0.952381 # F for RxG = 2.246408
+
+# Critical Values
+qf(p=.05, df1 = 2, df2 = 21, lower.tail = FALSE) # Group
+qf(p=.05, df1 = 36, df2 = 63, lower.tail = FALSE) # Treatment
+qf(p=.05, df1 = 6, df2 = 63, lower.tail = FALSE) # Treatment x Group
+```
+
+The critical value for group is $F_{2,21,0.05} = 3.47$  
+The critical value for treatment is $F_{36,63,0.05} = 1.60$  
+The critical value for the interaction is $F_{6,63,0.05} = 2.25$  
+
+All test statistics are above their critical values, so we can conclude that Group and Treatment have a significant interaction effect.
+
+
+
+## 2.2 How many groups, subjects, repeated measures?
+
+There are 3 groups because the df for G is 2. There are 4 repeated measures
+because the df for R is 3. There are 8 subjects. Since the df for S is 23, we know that
+$g \times n = 24$. We already calculated that $g = 3$, so $n=24/3=8$.
+
+## 3.1 Interaction Plot
 
 ```{r}
-df <- read.table("Avoidance.dat", header = TRUE) %>% 
-  mutate(
-    Area = factor(Area, labels = c("N", "A", "B")),
-    Lag = factor(Lag, labels = c("50ms", "100ms", "150ms"), ordered = TRUE)
-    )
-summary(df)
-```
-### 3a obtain an interaction plot with brain region as separate lines and Lag on the x axis.
+ptsd.lm <- lm(cbind(Pre, Post, Followup) 
+              ~ Group,
+              data = ptsd)
 
-```{r, warning=FALSE}
-interaction.plot(
-  x.factor = df$Lag,
-  trace.factor = df$Area,
-  response = df$Time,
-  fun = mean,
-  ylab = "Time",
-  xlab = "Time Lag",
-  col = c("pink", "blue", "green"),
-  lty = 1, #line type
-  lwd = 2, #line width
-  trace.label = "Area"
-  )
+emmip(ptsd.lm, Group ~ rep.meas) +
+  guides(color=guide_legend(title="Treatment")) +
+  xlab("Time") +
+  ylab("Symptom Severity")
 ```
-
-### 3b obtain ANOVA table.
+## 3.2 One-way ANOVA on pre-treatment measure
 
 ```{r}
-fit <- aov(Time ~ Area*Lag, data=df)
-summary(fit)
+summary(aov(Pre ~ Group, data=ptsd))
 ```
+There is not a significant difference between treatments at the time of first measurement. This is good because none of the treatments had been applied yet, so we would not expect any differences. I suppose we can conclude that our sample was reasonably well randomized.
 
-### 3c obtain the unadjusted p-value for the interaction contrast in Problem 3 of HW9
-
-|              | Area N | Area A | Area B | Row Means |
-|--------------|--------|--------|--------|-----------|
-| 50ms         | 28.6   | 16.8   | 24.4   | 23.27     |
-| 100ms        | 28     | 23     | 16     | 22.33     |
-| 150ms        | 28     | 26.8   | 26.4   | 27.07     |
-| Column Means | 28.2   | 22.2   | 22.27  | 24.22     |
-
-$\hat\psi = (16.8 - 24.4) - (23.0 - 16.0) = -14.6$  
-$df = (5 \times 9) - 9 = 36$  
-$SE = \sqrt{MS_{error} \times 4/n} = \sqrt{29.311 \times (1+1+1+1)/5} = 4.84$  
-$t = \hat\psi / SE = -14.6 / 4.84 = -3.016529$  
+## 3.3 Anova to test interaction
 
 ```{r}
-p <- pt(q = -3.016529, df = 36, lower.tail=TRUE)
-print(p)
-# multiply by 2 since this is not a directional hypothesis.
-print(p*2)
+measures <- as.factor(c("Pre", "Post", "Followup"))
+ptsd.aov <- Anova(ptsd.lm,
+                   idata=data.frame(measures),
+                   idesign=~measures,
+                   type=3)
+ptsd.summary <- summary(ptsd.aov)
 ```
-The two-sided, unadjusted p-value is 0.005.
 
-### 3d obtain unadjusted two-sided p-values for the family of 6 pairwise comparisons in the simple effects of Area (those in Problem 2 of HW9).
 
-I am borrowing the t-statistics from HW9. Hopefully that is allowed. And the p-values are calculated below.
+```{r, echo=FALSE}
+cat("\nUncorrected Univariate Test:\n")
+print(ptsd.summary$univariate.tests) # Assumes sphericity
+cat("\nMauchly's test:\n")
+print(ptsd.summary$sphericity.tests) # Mauchly's (not violated)
+cat("\nCorrected tests:\n")
+print(ptsd.summary$pval.adjustments[,]) # Corrected
+```
+
+The univariate test of the interaction between treatment and time of measurement is significant with G-G correction. Time of measurement interacts with treatment.
+
+## 3.4 Multivariate test of interaction
 
 ```{r}
-#| output: asis
-# All p-values are multiplied by 2 because these are two-sided tests.
-p <- pt(q = 3.45, df = 36, lower.tail=FALSE)*2
-cat(sprintf("$t_{50A} = 3.45, p = %1.3f$  \n", round(p, 3)))
-
-p <- pt(q = 1.23, df = 36, lower.tail=FALSE)*2
-cat(sprintf("$t_{50B} = 1.23, p = %1.3f$  \n", round(p, 3)))
-
-p <- pt(q = 1.46, df = 36, lower.tail=FALSE)*2
-cat(sprintf("$t_{100A} = 1.46, p = %1.3f$  \n", round(p, 3)))
-
-p <- pt(q = 3.50, df = 36, lower.tail=FALSE)*2
-cat(sprintf("$t_{100B} = 3.50, p = %1.3f$  \n", round(p, 3)))
-
-p <- pt(q = 0.35, df = 36, lower.tail=FALSE)*2
-cat(sprintf("$t_{150A} = 0.35, p = %1.3f$  \n", round(p, 3)))
-
-p <- pt(q = 0.47, df = 36, lower.tail=FALSE)*2
-cat(sprintf("$t_{150B} = 0.47, p = %1.3f$  \n", round(p, 3)))
+print(ptsd.summary$multivariate.tests$`Group:measures`)
 ```
+
+The four tests are not equivalent because we now have 2+ levels in both factors, but all of the tests are still significant. Pillai's trace is the recommended choice. We can conclude that there is a significant interaction between time of measurement and treatment in this study. The multivariate test is more reliable than the univariate test, especially for repeated measures over time.
 
