@@ -1,0 +1,22 @@
+---
+title: "Homework 1"
+author: "Langdon Holmes"
+date-modified: "today"
+subtitle: "Factor Analysis"
+format: html
+code-fold: false
+code-overflow: wrap
+editor: 
+  markdown: 
+    wrap: 80
+---
+
+# Question 1
+
+Given that
+$\boldsymbol{R} - \boldsymbol{D}_{\psi}=\boldsymbol{UD}_{\ell}\boldsymbol{U}'$ that $\Lambda$ is one factor solution, provide a formal proof that $\Lambda'\Lambda = \boldsymbol{D}_{\ell}$ using matrix algebra and the information provided in lecture slides:
+
+
+
+# Question 2
+
