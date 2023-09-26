@@ -38,7 +38,15 @@ P <- matrix(c(1.00, .43, .54, .15, .24, .27,
               .24, .17, .24, .42, 1.00, .61,
               .27, .21, .33, .48, .61, 1.00), nrow = 6)
 
-P_inverse = solve(P)
+factor <- function(A){
+  A_inverse <- solve(A) # solve() gives the inverse of a matrix
+  A_SMC <- A # copy of matrix A
+  diag(A_SMC) <- diag(A_inverse) # assign diagonal elements from inverse of A
+  D_ell <- eigen(A_SMC)$values
+  U <- eigen(A_SMC)$vectors
+}
+diag(P) <- diag(solve(P))
+eigen(P)
 ```
 
 ```{=latex}
