@@ -14,9 +14,40 @@ editor:
 # Question 1
 
 Given that
-$\boldsymbol{R} - \boldsymbol{D}_{\psi}=\boldsymbol{UD}_{\ell}\boldsymbol{U}'$ that $\Lambda$ is one factor solution, provide a formal proof that $\Lambda'\Lambda = \boldsymbol{D}_{\ell}$ using matrix algebra and the information provided in lecture slides:
+$\boldsymbol{R} - \boldsymbol{D}_{\psi}=\boldsymbol{UD}_{\ell}\boldsymbol{U}'$ and that $\Lambda$ is one factor solution, provide a formal proof that $\boldsymbol{\Lambda}'\boldsymbol{\Lambda} = \boldsymbol{D}_{\ell}$ using matrix algebra and the information provided in lecture slides:
 
-
+```{=latex}
+\begin{align*}
+\boldsymbol{D}_{\ell} &= \boldsymbol{D}_{\ell}^{1/2}\boldsymbol{D}_{\ell}^{1/2} \\
+&= \boldsymbol{D}_{\ell}^{1/2}\boldsymbol{I}\boldsymbol{D}_{\ell}^{1/2} & \text{Multiplication by Identity matrix preserves value} \\
+&= \boldsymbol{D}_{\ell}^{1/2}\boldsymbol{U}'\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2} & \boldsymbol{U}'\boldsymbol{U} = \boldsymbol{I} \text{ because $\boldsymbol{U}$ is orthogonal}\\
+&= (\boldsymbol{D}_{\ell}^{1/2})'\boldsymbol{U}'\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2} & \text{$\boldsymbol{D}_{\ell}$ is symmetric, so equal to its own transpose} \\
+&= (\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2})'\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2} & \text{Transpose of a product} \\
+&= \boldsymbol{\Lambda}'\boldsymbol{\Lambda}  & \text{Definition of a factor loading matrix} \\
+\end{align*}
+```
 
 # Question 2
 
+
+```{r}
+P <- matrix(c(1.00, .43, .54, .15, .24, .27,
+              .43, 1.00, .63, .15, .17, .21,
+              .54, .63, 1.00, .18, .24, .33,
+              .15, .15, .18, 1.00, .42, .48,
+              .24, .17, .24, .42, 1.00, .61,
+              .27, .21, .33, .48, .61, 1.00), nrow = 6)
+
+P_inverse = solve(P)
+```
+
+```{=latex}
+P = \begin{bmatrix}
+1.00 & .43 & .54 & .15 & .24 & .27 \\
+.43 & 1.00 & .63 & .15 & .17 & .21 \\
+.54 & .63 & 1.00 & .18 & .24 & .33 \\
+.15 & .15 & .18 & 1.00 & .42 & .48 \\
+.24 & .17 & .24 & .42 & 1.00 & .61 \\
+.27 & .21 & .33 & .48 & .61 & 1.00 \\
+\end{bmatrix}
+```
