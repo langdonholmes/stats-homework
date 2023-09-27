@@ -3,7 +3,7 @@ title: "Homework 1"
 author: "Langdon Holmes"
 date-modified: "today"
 subtitle: "Factor Analysis"
-format: html
+format: pdf
 code-fold: false
 code-overflow: wrap
 editor: 
@@ -106,5 +106,25 @@ lambda_prime_lambda = round(t(lambda) %*% lambda, 8)
 if(identical(round(D_ell, 8), lambda_prime_lambda)){
   cat('The matrices are equal!')
 }
+```
+
+## Sanity Check
+
+The first factor loadings (PA1) are all positive here, but they were negative in my manual analysis. Not sure why this would be, but everything else looks good!
+
+```{r}
+library(psych)
+
+P.fa <- fa(
+  P, # population correlation matrix
+  nfactors=2,
+  rotate="none", # maybe we will use rotations later...
+  fm="pa", # principal factor method
+  max.iter=0 # No iteration (because we have the population correlation matrix).
+  )
+
+P.fa$communality # communalities
+P.fa$loadings # factor loadings: PA1 and PA2
+P.fa$values # Eigenvalues of (P - D_psi)
 ```
 
