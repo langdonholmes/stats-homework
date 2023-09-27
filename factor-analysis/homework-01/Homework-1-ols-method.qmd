@@ -1,0 +1,37 @@
+---
+title: "Homework 1"
+author: "Langdon Holmes"
+date-modified: "today"
+subtitle: "Factor Analysis"
+format: html
+code-fold: false
+code-overflow: wrap
+editor: 
+  markdown: 
+    wrap: 80
+---
+
+# Time to iterate!
+
+$F_{OLS}\left(\boldsymbol{R}, \hat{\boldsymbol{P}} \right) = \frac{1}{2}\sum_{i=1}^{p}\sum_{j=1}^{p}\left[\boldsymbol{R} - \hat{\boldsymbol{D}}_{\psi} - \hat{\boldsymbol{\Lambda}}\hat{\boldsymbol{\Lambda}}' \right]_{ij}^{2}$
+
+```{r}
+factor <- function(A, num_factors=2, convergence_threshold=.001){
+  A.init = A # copy input matrix
+  diag(A) <- (1 - 1 / diag(solve(A))) # insert sample squared multiple correlations (SMCs)
+  while (err >= convergence_threshold) {
+    A.eigen <- eigen(A)
+    A.eigen.vectors <- A.eigen$vectors[ , 1:num_factors ]
+    A.eigen.values <- A.eigen$values[ 1:num_factors ]
+    lambda <- as.matrix(A.eigen.vectors %*% diag(sqrt(A.eigen.values)))
+    A.hat <- lambda %*% t(lambda)
+    A - A.hat
+  }
+  A_inverse <- solve(A) # solve() gives the inverse of a matrix
+  A_SMC <- A # copy of matrix A
+  diag(A_SMC) <- diag(A_inverse) # assign diagonal elements from inverse of A
+  D_ell <- eigen(A_SMC)$values
+  U <- eigen(A_SMC)$vectors
+}
+```
+
