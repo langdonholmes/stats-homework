@@ -18,12 +18,13 @@ $\boldsymbol{R} - \boldsymbol{D}_{\psi}=\boldsymbol{UD}_{\ell}\boldsymbol{U}'$ a
 
 ```{=latex}
 \begin{align*}
-\boldsymbol{D}_{\ell} &= \boldsymbol{D}_{\ell}^{1/2}\boldsymbol{D}_{\ell}^{1/2} \\
-&= \boldsymbol{D}_{\ell}^{1/2}\boldsymbol{I}\boldsymbol{D}_{\ell}^{1/2} & \text{Multiplication by Identity matrix preserves value} \\
-&= \boldsymbol{D}_{\ell}^{1/2}\boldsymbol{U}'\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2} & \boldsymbol{U}'\boldsymbol{U} = \boldsymbol{I} \text{ because $\boldsymbol{U}$ is orthogonal}\\
-&= (\boldsymbol{D}_{\ell}^{1/2})'\boldsymbol{U}'\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2} & \text{$\boldsymbol{D}_{\ell}$ is symmetric, so equal to its own transpose} \\
-&= (\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2})'\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2} & \text{Transpose of a product} \\
-&= \boldsymbol{\Lambda}'\boldsymbol{\Lambda}  & \text{Definition of a factor loading matrix} \\
+&= \boldsymbol{\Lambda}'\boldsymbol{\Lambda} \\
+&= (\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2})'\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2}  & \text{Definition of a factor loading matrix} \\
+&= (\boldsymbol{D}_{\ell}^{1/2})'\boldsymbol{U}'\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2} & \text{Transpose of a product} \\
+&= \boldsymbol{D}_{\ell}^{1/2}\boldsymbol{U}'\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2} & \text{$\boldsymbol{D}_{\ell}$ is symmetric, so equal to its own transpose} \\
+&= \boldsymbol{D}_{\ell}^{1/2}\boldsymbol{I}\boldsymbol{D}_{\ell}^{1/2} & \boldsymbol{U}'\boldsymbol{U} = \boldsymbol{I} \text{ because $\boldsymbol{U}$ is orthogonal}\\
+&= \boldsymbol{D}_{\ell}^{1/2}\boldsymbol{D}_{\ell}^{1/2} & \text{Multiplication by Identity matrix preserves value} \\
+&= \boldsymbol{D}_{\ell} & \blacksquare
 \end{align*}
 ```
 
@@ -37,17 +38,51 @@ P <- matrix(c(1.00, .43, .54, .15, .24, .27,
               .15, .15, .18, 1.00, .42, .48,
               .24, .17, .24, .42, 1.00, .61,
               .27, .21, .33, .48, .61, 1.00), nrow = 6)
-
-factor <- function(A){
-  A_inverse <- solve(A) # solve() gives the inverse of a matrix
-  A_SMC <- A # copy of matrix A
-  diag(A_SMC) <- diag(A_inverse) # assign diagonal elements from inverse of A
-  D_ell <- eigen(A_SMC)$values
-  U <- eigen(A_SMC)$vectors
-}
-diag(P) <- diag(solve(P))
-eigen(P)
 ```
+
+$\boldsymbol{P}^{-1}$
+
+```{r}
+solve(P) # inverse
+```
+
+$\boldsymbol{R} - \boldsymbol{D}_{\psi}$
+
+```{r}
+P.1 <- P # copy matrix
+diag(P.1) <- (1 - 1 / diag(solve(P))) # insert sample squared multiple correlations (SMCs)
+```
+
+$\boldsymbol{D}_{\ell}$
+
+```{r}
+P.1.eigen <- eigen(P.1)
+
+D_ell <-  diag( P.1.eigen$values[1:2] )
+D_ell
+```
+
+$\boldsymbol{U}$
+
+```{r}
+U <- P.1.eigen$vectors[,1:2]
+U
+```
+
+$\hat{\boldsymbol{\Lambda}} = \boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2}$
+
+```{r}
+lambda <- U %*% sqrt(D_ell)
+lambda
+```
+
+$\boldsymbol{R} - \hat{\boldsymbol{D}}_{\psi}=\hat{\boldsymbol{\Lambda}}\hat{\boldsymbol{\Lambda}}'$
+
+```{r}
+lambda %*% t(lambda) 
+```
+
+
 
 ```{=latex}
 P = \begin{bmatrix}
@@ -59,3 +94,28 @@ P = \begin{bmatrix}
 .27 & .21 & .33 & .48 & .61 & 1.00 \\
 \end{bmatrix}
 ```
+
+# Time to iterate!
+
+$F_{OLS}\left(\boldsymbol{R}, \hat{\boldsymbol{P}} \right) = \frac{1}{2}\sum_{i=1}^{p}\sum_{j=1}^{p}\left[\boldsymbol{R} - \hat{\boldsymbol{D}}_{\psi} - \hat{\boldsymbol{\Lambda}}\hat{\boldsymbol{\Lambda}}' \right]_{ij}^{2}$
+
+```{r}
+factor <- function(A, num_factors=2, convergence_threshold=.001){
+  A.init = A # copy input matrix
+  diag(A) <- (1 - 1 / diag(solve(A))) # insert sample squared multiple correlations (SMCs)
+  while (err >= convergence_threshold) {
+    A.eigen <- eigen(A)
+    A.eigen.vectors <- A.eigen$vectors[ , 1:num_factors ]
+    A.eigen.values <- A.eigen$values[ 1:num_factors ]
+    lambda <- as.matrix(A.eigen.vectors %*% diag(sqrt(A.eigen.values)))
+    A.hat <- lambda %*% t(lambda)
+    A - A.hat
+  }
+  A_inverse <- solve(A) # solve() gives the inverse of a matrix
+  A_SMC <- A # copy of matrix A
+  diag(A_SMC) <- diag(A_inverse) # assign diagonal elements from inverse of A
+  D_ell <- eigen(A_SMC)$values
+  U <- eigen(A_SMC)$vectors
+}
+```
+

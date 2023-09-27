@@ -129,7 +129,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
     <div>
     <div class="quarto-title-meta-heading">Modified</div>
     <div class="quarto-title-meta-contents">
-      <p class="date-modified">September 26, 2023</p>
+      <p class="date-modified">September 27, 2023</p>
     </div>
   </div>
     
@@ -142,12 +142,13 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <h1>Question 1</h1>
 <p>Given that <span class="math inline">\(\boldsymbol{R} - \boldsymbol{D}_{\psi}=\boldsymbol{UD}_{\ell}\boldsymbol{U}'\)</span> and that <span class="math inline">\(\Lambda\)</span> is one factor solution, provide a formal proof that <span class="math inline">\(\boldsymbol{\Lambda}'\boldsymbol{\Lambda} = \boldsymbol{D}_{\ell}\)</span> using matrix algebra and the information provided in lecture slides:</p>
 <span class="math display">\[\begin{align*}
-\boldsymbol{D}_{\ell} &amp;= \boldsymbol{D}_{\ell}^{1/2}\boldsymbol{D}_{\ell}^{1/2} \\
-&amp;= \boldsymbol{D}_{\ell}^{1/2}\boldsymbol{I}\boldsymbol{D}_{\ell}^{1/2} &amp; \text{Multiplication by Identity matrix preserves value} \\
-&amp;= \boldsymbol{D}_{\ell}^{1/2}\boldsymbol{U}'\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2} &amp; \boldsymbol{U}'\boldsymbol{U} = \boldsymbol{I} \text{ because $\boldsymbol{U}$ is orthogonal}\\
-&amp;= (\boldsymbol{D}_{\ell}^{1/2})'\boldsymbol{U}'\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2} &amp; \text{$\boldsymbol{D}_{\ell}$ is symmetric, so equal to its own transpose} \\
-&amp;= (\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2})'\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2} &amp; \text{Transpose of a product} \\
-&amp;= \boldsymbol{\Lambda}'\boldsymbol{\Lambda}  &amp; \text{Definition of a factor loading matrix} \\
+&amp;= \boldsymbol{\Lambda}'\boldsymbol{\Lambda} \\
+&amp;= (\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2})'\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2}  &amp; \text{Definition of a factor loading matrix} \\
+&amp;= (\boldsymbol{D}_{\ell}^{1/2})'\boldsymbol{U}'\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2} &amp; \text{Transpose of a product} \\
+&amp;= \boldsymbol{D}_{\ell}^{1/2}\boldsymbol{U}'\boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2} &amp; \text{$\boldsymbol{D}_{\ell}$ is symmetric, so equal to its own transpose} \\
+&amp;= \boldsymbol{D}_{\ell}^{1/2}\boldsymbol{I}\boldsymbol{D}_{\ell}^{1/2} &amp; \boldsymbol{U}'\boldsymbol{U} = \boldsymbol{I} \text{ because $\boldsymbol{U}$ is orthogonal}\\
+&amp;= \boldsymbol{D}_{\ell}^{1/2}\boldsymbol{D}_{\ell}^{1/2} &amp; \text{Multiplication by Identity matrix preserves value} \\
+&amp;= \boldsymbol{D}_{\ell} &amp; \blacksquare
 \end{align*}\]</span>
 </section>
 <section id="question-2" class="level1">
@@ -159,6 +160,96 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>              .<span class="dv">15</span>, .<span class="dv">15</span>, .<span class="dv">18</span>, <span class="fl">1.00</span>, .<span class="dv">42</span>, .<span class="dv">48</span>,</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>              .<span class="dv">24</span>, .<span class="dv">17</span>, .<span class="dv">24</span>, .<span class="dv">42</span>, <span class="fl">1.00</span>, .<span class="dv">61</span>,</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>              .<span class="dv">27</span>, .<span class="dv">21</span>, .<span class="dv">33</span>, .<span class="dv">48</span>, .<span class="dv">61</span>, <span class="fl">1.00</span>), <span class="at">nrow =</span> <span class="dv">6</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p><span class="math inline">\(\boldsymbol{P}^{-1}\)</span></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">solve</span>(P) <span class="co"># inverse</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>            [,1]        [,2]         [,3]        [,4]         [,5]       [,6]
+[1,]  1.46827361 -0.21514984 -0.602360822  0.01276149 -0.127182868 -0.0810173
+[2,] -0.21514984  1.69481072 -0.955175138 -0.07360333 -0.013511968  0.0609599
+[3,] -0.60236082 -0.95517514  2.027251381  0.01894418  0.007191081 -0.3192485
+[4,]  0.01276149 -0.07360333  0.018944182  1.34797969 -0.270860197 -0.4760460
+[5,] -0.12718287 -0.01351197  0.007191081 -0.27086020  1.663191820 -0.8497303
+[6,] -0.08101730  0.06095990 -0.319248521 -0.47604602 -0.849730285  1.8612627</code></pre>
+</div>
+</div>
+<p><span class="math inline">\(\boldsymbol{R} - \boldsymbol{D}_{\psi}\)</span></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>P<span class="fl">.1</span> <span class="ot">&lt;-</span> P <span class="co"># copy matrix</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">diag</span>(P<span class="fl">.1</span>) <span class="ot">&lt;-</span> (<span class="dv">1</span> <span class="sc">-</span> <span class="dv">1</span> <span class="sc">/</span> <span class="fu">diag</span>(<span class="fu">solve</span>(P))) <span class="co"># insert sample squared multiple correlations (SMCs)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p><span class="math inline">\(\boldsymbol{D}_{\ell}\)</span></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>P.<span class="fl">1.</span>eigen <span class="ot">&lt;-</span> <span class="fu">eigen</span>(P<span class="fl">.1</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>D_ell <span class="ot">&lt;-</span>  <span class="fu">diag</span>( P.<span class="fl">1.</span>eigen<span class="sc">$</span>values[<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>] )</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>D_ell</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>         [,1]      [,2]
+[1,] 2.108337 0.0000000
+[2,] 0.000000 0.7936802</code></pre>
+</div>
+</div>
+<p><span class="math inline">\(\boldsymbol{U}\)</span></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>U <span class="ot">&lt;-</span> P.<span class="fl">1.</span>eigen<span class="sc">$</span>vectors[,<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>]</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>U</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>           [,1]       [,2]
+[1,] -0.3877427 -0.2956915
+[2,] -0.3985970 -0.4459431
+[3,] -0.4760502 -0.4254320
+[4,] -0.3178002  0.3851370
+[5,] -0.3998470  0.4454500
+[6,] -0.4508632  0.4312224</code></pre>
+</div>
+</div>
+<p><span class="math inline">\(\hat{\boldsymbol{\Lambda}} = \boldsymbol{U}\boldsymbol{D}_{\ell}^{1/2}\)</span></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>lambda <span class="ot">&lt;-</span> U <span class="sc">%*%</span> <span class="fu">sqrt</span>(D_ell)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>lambda</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>           [,1]       [,2]
+[1,] -0.5630068 -0.2634278
+[2,] -0.5787673 -0.3972850
+[3,] -0.6912303 -0.3790119
+[4,] -0.4614495  0.3431136
+[5,] -0.5805823  0.3968458
+[6,] -0.6546584  0.3841705</code></pre>
+</div>
+</div>
+<p><span class="math inline">\(\boldsymbol{R} - \hat{\boldsymbol{D}}_{\psi}=\hat{\boldsymbol{\Lambda}}\hat{\boldsymbol{\Lambda}}'\)</span></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>lambda <span class="sc">%*%</span> <span class="fu">t</span>(lambda) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]
+[1,] 0.3863709 0.4305058 0.4890096 0.1694136 0.2223316 0.2673759
+[2,] 0.4305058 0.4928069 0.5506372 0.1307580 0.1783612 0.2262697
+[3,] 0.4890096 0.5506372 0.6214493 0.1889237 0.2509068 0.3069145
+[4,] 0.1694136 0.1307580 0.1889237 0.3306626 0.4040726 0.4339059
+[5,] 0.2223316 0.1783612 0.2509068 0.4040726 0.4945624 0.5325395
+[6,] 0.2673759 0.2262697 0.3069145 0.4339059 0.5325395 0.5761646</code></pre>
+</div>
+</div>
+</section>
+<section id="time-to-iterate" class="level1">
+<h1>Time to iterate!</h1>
+<p><span class="math inline">\(F_{OLS}\left(\boldsymbol{R}, \hat{\boldsymbol{P}} \right) = \frac{1}{2}\sum_{i=1}^{p}\sum_{j=1}^{p}\left[\boldsymbol{R} - \hat{\boldsymbol{D}}_{\psi} - \hat{\boldsymbol{\Lambda}}\hat{\boldsymbol{\Lambda}}' \right]_{ij}^{2}\)</span></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>factor <span class="ot">&lt;-</span> <span class="cf">function</span>(A, <span class="at">factors=</span><span class="dv">2</span>, <span class="at">convergence_threshold=</span>.<span class="dv">001</span>){</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  A.init <span class="ot">=</span> A <span class="co"># copy input matrix</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">while</span> (err <span class="sc">&gt;=</span> convergence_threshold) {</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">diag</span>(A) <span class="ot">&lt;-</span> (<span class="dv">1</span> <span class="sc">-</span> <span class="dv">1</span> <span class="sc">/</span> <span class="fu">diag</span>(<span class="fu">solve</span>(A))) <span class="co"># insert sample squared multiple correlations (SMCs)</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    lambda <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(r.eigen<span class="sc">$</span>vectors[,<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>]) <span class="sc">%*%</span> <span class="fu">diag</span>(<span class="fu">sqrt</span>(r.eigen<span class="sc">$</span>values[<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>]))</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    A.hat <span class="ot">&lt;-</span> lambda <span class="sc">%*%</span> <span class="fu">t</span>(lambda)</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  A_inverse <span class="ot">&lt;-</span> <span class="fu">solve</span>(A) <span class="co"># solve() gives the inverse of a matrix</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  A_SMC <span class="ot">&lt;-</span> A <span class="co"># copy of matrix A</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">diag</span>(A_SMC) <span class="ot">&lt;-</span> <span class="fu">diag</span>(A_inverse) <span class="co"># assign diagonal elements from inverse of A</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>  D_ell <span class="ot">&lt;-</span> <span class="fu">eigen</span>(A_SMC)<span class="sc">$</span>values</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>  U <span class="ot">&lt;-</span> <span class="fu">eigen</span>(A_SMC)<span class="sc">$</span>vectors</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 
