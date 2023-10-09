@@ -1,0 +1,127 @@
+---
+title: "Homework 2"
+author: "Langdon Holmes"
+date-modified: "today"
+subtitle: "Factor Analysis"
+format: pdf
+code-fold: false
+code-overflow: wrap
+editor: 
+  markdown: 
+    wrap: 80
+---
+
+# Data
+
+```{r}
+values <- c(
+  1.00, .61, 1.00, .64, .50, 1.00, .07, .02, .02, 1.00, .14, .13,  .04,
+  .51, 1.00, .07, .08, -.03, .46, .51, 1.00, .04, -.05, -.01,  .28, .29,
+  .13, 1.00, .08, .02, .08, .29, .31, .19, .46, 1.00, .06,  -.02, .01,
+  .47, .41, .31, .66, .55, 1.00, -.02, -.07, -.01, .10, .18,  .05, .16,
+  .31, .20, 1.00, -.02, -.08, -.02, .14, .24, .18, .16, .39,  .28, .60,
+  1.00, -.17, -.15, -.04, .05, .09, .05, .12, .26, .17, .46, .61, 1.00
+  )
+
+names <- c(
+  "LE", "AC", "IN", "LI", "LD", "LA", "LR", "LS", "NL", "SY", "HE", "GE"
+  )
+```
+
+## Wrangle
+
+```{r}
+x <- diag(12)
+# Values are inserted column-wise, so we add to the upper tri
+x[upper.tri(x, diag=TRUE)] <- values
+x <- x + t(x) - diag(12)
+rownames(x) <- names
+colnames(x) <- names
+x
+```
+
+# Factor
+
+## Question 1
+
+For m = 2, 3, 4, and 5 construct a table showing $m$, $\hat{F}_{ML}$ , the
+likelihood ratio test statistic ($\chi^2$, the degrees of freedom (*df*), the
+effective number of free parameters in the model (*q*), the exceedance
+probability (*p*-value) for the test of perfect fit, the exceedance probability
+for the test of close fit, estimated RMSEA ($\hat\epsilon$) and the 90%
+confidence interval for $\epsilon$.
+
+```{r, message=FALSE, warning=FALSE}
+library(EFAutilities)
+library(dplyr)
+
+get_fa_stats <- function(m) {
+  mod <- efa(
+    covmat=x,
+    rtype="orthogonal",
+    factors=m,
+    fm="ml",
+    n.obs=746,
+  )
+  return(data.frame(
+    factors=m,
+    fit_ml=mod$fdiscrepancy[["Discrepancy"]],
+    chi_2=mod$ModelF$f.stat[["Discrepancy"]],
+    df=mod$ModelF$df,
+    q=mod$nq,
+    perfect_fit=mod$ModelF$p.perfect[["Discrepancy"]],
+    close_fit=mod$ModelF$p.close[["Discrepancy"]],
+    RMSE=mod$ModelF$RMSEA[["Discrepancy"]],
+    lower=mod$ModelF$RMSEA.l,
+    upper=mod$ModelF$RMSEA.u
+    ))
+}
+
+df <- vector("list", 4)
+
+for(i in 2:5) {
+ df[[i]] <- get_fa_stats(i)
+}
+
+# df <- do.call(rbind, df)
+df <- df %>%
+  do.call(rbind, .) %>% 
+  mutate_if(is.numeric, round, digits=3)
+
+df
+```
+
+## Question 2
+
+For the 4-factor solution, write a statement about the meaning of each of these pieces of information.
+
+The number of factors is a hyperparameter that determines how many latent variables the model assumes. The $\hat{F}_{ML}$ statistic is the model loss, which we are attempting to minimize. The $\chi^2$ statistic describes 
+
+## Question 3
+
+For the 4-factor solution, show the relationship between $\hat{F}_{ML}$ and the value of the $\chi^2$ test statistic.
+
+## Question 4
+
+For the 4-factor solution, compute the unbiased estimate of the discrepancy function, $\hat{F}_{0}$, showing the relationship between $\hat{F}_{ML}$ and $\hat{F}_{0}$.
+
+## Question 5
+For the 4-factor solution, state how the confidence interval for RMSEA implies the result of the tests of exact fit and close fit.
+
+## Question 6
+
+Based on the information in your table, how many factors should be retained? Justify your response.
+
+## Question 7
+
+For the 4-factor solution, compute the communality of the first variable from the factor loadings. Write one sentence interpreting this value. Show how this value is related to the corresponding unique variance in your output and write one sentence interpreting the meaning of that unique variance.
+
+## Question 8
+
+For the 4-factor solution, compare the communalities to the SMCs and comment on their relationship.
+
+## Question 9
+
+For the 4-factor solution, compute the reconstructed correlation between the Law Enforcement (LE) and Acceptance of Social Order (AC) scales. Compare this value to the observed sample correlation and explain the meaning of the difference between these values
+
+## Extra Credit
