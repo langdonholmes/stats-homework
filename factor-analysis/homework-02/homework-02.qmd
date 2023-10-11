@@ -43,13 +43,12 @@ x
 # Factor
 
 ## Question 1
-
-For m = 2, 3, 4, and 5 construct a table showing $m$, $\hat{F}_{ML}$ , the
+*For m = 2, 3, 4, and 5 construct a table showing $m$, $\hat{F}_{ML}$ , the
 likelihood ratio test statistic ($\chi^2$, the degrees of freedom (*df*), the
 effective number of free parameters in the model (*q*), the exceedance
 probability (*p*-value) for the test of perfect fit, the exceedance probability
 for the test of close fit, estimated RMSEA ($\hat\epsilon$) and the 90%
-confidence interval for $\epsilon$.
+confidence interval for $\epsilon$.*
 
 ```{r, message=FALSE, warning=FALSE}
 library(EFAutilities)
@@ -71,7 +70,7 @@ get_fa_stats <- function(m) {
     q=mod$nq,
     perfect_fit=mod$ModelF$p.perfect[["Discrepancy"]],
     close_fit=mod$ModelF$p.close[["Discrepancy"]],
-    RMSE=mod$ModelF$RMSEA[["Discrepancy"]],
+    RMSEA=mod$ModelF$RMSEA[["Discrepancy"]],
     lower=mod$ModelF$RMSEA.l,
     upper=mod$ModelF$RMSEA.u
     ))
@@ -92,25 +91,47 @@ df
 ```
 
 ## Question 2
+*For the 4-factor solution, write a statement about the meaning of each of these pieces of information.*
 
-For the 4-factor solution, write a statement about the meaning of each of these pieces of information.
-
-The number of factors is a hyperparameter that determines how many latent variables the model assumes. The $\hat{F}_{ML}$ statistic is the model loss, which we are attempting to minimize. The $\chi^2$ statistic describes 
+  - The number of factors is a hyperparameter that determines how many latent variables the model assumes.
+  - The $\hat{F}_{ML}$ statistic is the model loss, which we are attempting to minimize.
+  - The $\chi^2$ statistic ($\hat{F}_{ML}$) describes 
+  - The degrees of freedom is the number of parameters that are estimated in the model.
+  - The effective number of free parameters is the number of parameters that are estimated in the model, minus the number of parameters that are fixed to zero.
+  - The exceedance probability for the test of perfect fit is the probability that the model is a perfect fit to the data.
+  - The exceedance probability for the test of close fit is the probability that the model is a close fit to the data.
+  - The estimated RMSEA is the estimated root mean square error of approximation.
+  - The 90% confidence interval for $\epsilon$ is the 90% confidence interval for the root mean square error of approximation.
 
 ## Question 3
+*For the 4-factor solution, show the relationship between $\hat{F}_{ML}$ and the value of the $\chi^2$ test statistic.*
 
-For the 4-factor solution, show the relationship between $\hat{F}_{ML}$ and the value of the $\chi^2$ test statistic.
+The $\chi^2$ test statistic is approximated by $(N - 1)\hat{F}_{ML}$.
+```{r}
+f_ml <- 1.379
+num_obs <- 746
+round((num_obs - 1) * f_ml)
+```
 
 ## Question 4
+*For the 4-factor solution, compute the unbiased estimate of the discrepancy function, $\hat{F}_{0}$, showing the relationship between $\hat{F}_{ML}$ and $\hat{F}_{0}$.*
 
-For the 4-factor solution, compute the unbiased estimate of the discrepancy function, $\hat{F}_{0}$, showing the relationship between $\hat{F}_{ML}$ and $\hat{F}_{0}$.
+The unbiased estimate of the discrepancy function is $\hat{F}_{0} = \max \left \{\hat{F}_{ML} - \frac{df}{N-1}, 0 \right\}$, where $df$ is the degrees of freedom and $N$ is the number of observations.
+
+```{r}
+df <- 24
+max(f_ml - (df / (num_obs - 1)), 0)
+```
 
 ## Question 5
-For the 4-factor solution, state how the confidence interval for RMSEA implies the result of the tests of exact fit and close fit.
+*For the 4-factor solution, state how the confidence interval for RMSEA implies the result of the tests of exact fit and close fit.*
+
+
 
 ## Question 6
+*Based on the information in your table, how many factors should be retained? Justify your response.*
 
-Based on the information in your table, how many factors should be retained? Justify your response.
+
 
 ## Question 7
 
