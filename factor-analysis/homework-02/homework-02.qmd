@@ -34,6 +34,9 @@ names <- c(
 x <- diag(12)
 # Values are inserted column-wise, so we add to the upper tri
 x[upper.tri(x, diag=TRUE)] <- values
+# add the transpose to get the lower left
+# but this results in 2.0 on the diagonal,
+# so subtract diag(12) to get the full correlation matrix
 x <- x + t(x) - diag(12)
 rownames(x) <- names
 colnames(x) <- names
@@ -95,13 +98,13 @@ df
 
   - The number of factors is a hyperparameter that determines how many latent variables the model assumes.
   - The $\hat{F}_{ML}$ statistic is the model loss, which we are attempting to minimize.
-  - The $\chi^2$ statistic ($\hat{F}_{ML}$) describes 
+  - The $\chi^2$ statistic describes the likelihood ratio test statistic. It follows a $\chi^2$ distribution.
   - The degrees of freedom is the number of parameters that are estimated in the model.
   - The effective number of free parameters is the number of parameters that are estimated in the model, minus the number of parameters that are fixed to zero.
-  - The exceedance probability for the test of perfect fit is the probability that the model is a perfect fit to the data.
-  - The exceedance probability for the test of close fit is the probability that the model is a close fit to the data.
-  - The estimated RMSEA is the estimated root mean square error of approximation.
-  - The 90% confidence interval for $\epsilon$ is the 90% confidence interval for the root mean square error of approximation.
+  - The exceedance p-value for the test of perfect fit indicates whether we can reject the null hypothesis that the model is a perfect fit to the data.
+  - The exceedance  p-value for the test of close fit indicates whether we can reject the null hypothesis that the model is a close fit to the data.
+  - The estimated RMSEA is the estimated root mean square error of approximation. It measures discrepancy per degree of freedom, with lower values indicating better fit.
+  - The 90% confidence interval for $\epsilon$ (RMSEA) is the 90% confidence interval for the root mean square error of approximation. We would like to see some small numbers included in this interval.
 
 ## Question 3
 *For the 4-factor solution, show the relationship between $\hat{F}_{ML}$ and the value of the $\chi^2$ test statistic.*
@@ -126,23 +129,60 @@ max(f_ml - (df / (num_obs - 1)), 0)
 ## Question 5
 *For the 4-factor solution, state how the confidence interval for RMSEA implies the result of the tests of exact fit and close fit.*
 
+The test of exact fit is indicated by the lower bound of the confidence interval. Since the lower bound of this CI is not 0 for $m \in \{2,3,4,5\}$, we reject the null hypothesis that that any of these models are a perfect fit.
 
+The test of close fit is also indicated by the lower bound of the confidence interval. Since the lower of this CI is < 0.05 for $m \in \{4,5\}$, we cannot reject the null hypothesis of close fit for these models.
 
 ## Question 6
 *Based on the information in your table, how many factors should be retained? Justify your response.*
 
-
+I would retain four factors because this is the smallest number of factors that passes the test of close fit. I also cheated by looking at the factor loadings, and the four factor model is the most interpetable because 4 sets of 3 MVs load neatly onto each factor. In the 5-factor model, loadings on the fifth factor are not as neat and tidy.
 
 ## Question 7
+*For the 4-factor solution, compute the communality of the first variable from the factor loadings. Write one sentence interpreting this value. Show how this value is related to the corresponding unique variance in your output and write one sentence interpreting the meaning of that unique variance.*
 
-For the 4-factor solution, compute the communality of the first variable from the factor loadings. Write one sentence interpreting this value. Show how this value is related to the corresponding unique variance in your output and write one sentence interpreting the meaning of that unique variance.
+```{r}
+fa4 <- efa(
+  covmat=x,
+  rtype="orthogonal",
+  factors=4,
+  fm="ml",
+  mnames=names,
+  n.obs=746,
+)
+lambda <- fa4$unrotated
+communalities <- rowSums(lambda^2)
+cat("Communality:", communalities["LE"], "\n")
+cat("Unique Variance:", fa4$compsi["LE", "UniV"])
+```
+
+The communality is the proportion of variance explained by the factors, so Law Enforcement (LE) has a very good proportion of its variance (almost .80!) explained by the factors. The communality is equal to $1 - \psi$, where $\psi$ is the unique variance. The unique variance indicates the proportion of variance that is not explained by the factors; it is the variance that is unique to a given manifest variable.
 
 ## Question 8
+*For the 4-factor solution, compare the communalities to the SMCs and comment on their relationship.*
 
-For the 4-factor solution, compare the communalities to the SMCs and comment on their relationship.
+```{r}
+fa4$compsi
+```
+
+The SMC is guaranteed to be a lower bound on the true communalities, so it is nice to see that the communalities are all larger than their respective SMC. In some cases, the communality is very close to the SMC, but in other cases, the communality is substantially larger than the SMC.
 
 ## Question 9
+*For the 4-factor solution, compute the reconstructed correlation between the Law Enforcement (LE) and Acceptance of Social Order (AC) scales. Compare this value to the observed sample correlation and explain the meaning of the difference between these values.*
 
-For the 4-factor solution, compute the reconstructed correlation between the Law Enforcement (LE) and Acceptance of Social Order (AC) scales. Compare this value to the observed sample correlation and explain the meaning of the difference between these values
+```{r}
+vars_of_interest <- c("LE", "AC")
+cat("Sample Correlation:", x["LE", "AC"], "\n")
+cat("Reconstructed Correlation", fa4$Phat["LE", "AC"], "\n")
+cat("Correlation Residual", fa4$Residual["LE", "AC"])
+```
+
+The reconstructed correlation between Law Enforcement (LE) and Acceptance of Social Order (AC) is almost identical to the correlation in the sample. The reconstructed correlation is slightly larger. The difference between these values is the correlation residual, which is the extent to which the model fails to recover the correlation
 
 ## Extra Credit
+
+The rusty hull of a ship  
+A welder's arc sends up  
+bubbles of iron oxide fumes  
+
+
