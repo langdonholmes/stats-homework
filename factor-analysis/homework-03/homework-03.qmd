@@ -1,0 +1,154 @@
+---
+title: "Homework 3"
+author: "Langdon Holmes"
+date-modified: "today"
+subtitle: "Factor Analysis"
+format: pdf
+code-fold: true
+code-overflow: wrap
+editor: 
+  markdown: 
+    wrap: 80
+---
+
+## Software
+
+I am going to carry out the analysis in a Quarto document using R because it is the tool I am most comfortable with, and it has all the functionality I need. For the actual factor analysis, I will use EFAUtilities because it provides more statistics and options than other packages in R.
+
+## Data
+
+```{r, message=FALSE, warning=FALSE}
+library(readxl)
+df <- read_excel("pfs.xls", col_names = FALSE)
+
+questions <- df[[2]] # get the survey questions
+
+pfs <- data.matrix(df[3:24]) # convert dataframe to matrix
+rownames(pfs) <- seq(1, 22) # clean up names
+colnames(pfs) <- seq(1, 22) # clean up names
+```
+
+## Exploratory
+
+It looks like quite a few questions are moderately to highly correlated. It will be interesting to see if these all load on the same factor (5, 6, 9, 10, 11, 14, 15, and 17).
+
+There a few black sheep in this matrix (12, 16, and 18). We may want to consider removing these or asking additional questions to measure the constructs.
+
+There are two obvious factors represented by items 19-20 and 21-22. I wonder what those are.
+
+```{r}
+#| label: fig-corplot
+#| fig-cap: "Correlation plot."
+#| warning: false
+library(corrplot)
+corrplot(pfs)
+```
+
+# Factor Analysis
+
+## Estimation method
+
+I will use maximum likelihood estimation because I like RMSEA, and I am comfortable assuming normality.
+
+## Number of factors
+
+I think the decision is between 4 and 5 factors.
+
+- 3 factors does not fit the data very well.
+- 4 factors passes the test of close fit, but does result in a factor that is measured primarily by just one MV.
+- 5 factors gives a slightly more comfortable confidence interval for the RMSEA value.
+- 6 factors shows clear signs of overfactoring (a factor with all very small loadings).
+
+I am going to go with 4 factors because I think we can suggest some improvements to the survey that will ultimately result in a _reliably_ close fit with fewer factors.
+
+```{r, message=FALSE, warning=FALSE}
+library(EFAutilities)
+library(dplyr)
+
+get_fa_stats <- function(m) {
+
+  mod <- efa(
+    covmat=pfs,
+    rtype="oblique",
+    rotation="CF-varimax",
+    factors=m,
+    fm="ml",
+    n.obs=240,
+  )
+
+  return(data.frame(
+    factors=m,
+    fit_ml=mod$fdiscrepancy[["Discrepancy"]],
+    chi_2=mod$ModelF$f.stat[["Discrepancy"]],
+    df=mod$ModelF$df,
+    q=mod$nq,
+    perfect_fit=mod$ModelF$p.perfect[["Discrepancy"]],
+    close_fit=mod$ModelF$p.close[["Discrepancy"]],
+    RMSEA=mod$ModelF$RMSEA[["Discrepancy"]],
+    lower=mod$ModelF$RMSEA.l,
+    upper=mod$ModelF$RMSEA.u
+    ))
+}
+
+model_stats <- vector("list")
+
+for(i in 3:6) {
+ model_stats[[i]] <- get_fa_stats(i)
+}
+
+# df <- do.call(rbind, df)
+model_stats %>%
+  do.call(rbind, .) %>% 
+  mutate_if(is.numeric, round, digits=3)
+```
+## Rotations
+
+I tested a few oblique rotations in the Crawford-Ferguson family, since I have no reason to force my factors to be uncorrelated. All simplicity criterion provided similar results (except for Factor parsimony, which produced poor results), so I will use CF-varimax because it is the default and commonly used.
+
+I also found a neat library that I think is intended for visualizing PCA, but it works just fine for a Factor Analysis loading matrix.
+
+```{r}
+#| label: fig-heatmap
+#| fig-cap: "4-factor loading matrix heatmap."
+#| warning: false
+
+library(pheatmap)
+
+mod <- efa(
+  covmat=pfs,
+  rtype="oblique",
+  rotation="CF-varimax",
+  factors=4,
+  mnames=questions,
+  fm="ml",
+  n.obs=240,
+)
+  
+pheatmap(mod$rotated,
+         cluster_rows = FALSE, cluster_cols = FALSE,
+         fontsize_row = 8, legend = FALSE # make it fit the PDF
+         )
+```
+
+## Interpretation
+
+Factor 1 describes communication and support within the family and the external support network. This factor describes the extent to which a parent feels supported in their role.
+
+Factor 2 describes non-violent discipline. It is most strongly associated with grounding and taking away privileges but is also clearly related to time-outs.
+
+Factor 3 describes family outlook -- feelings about the family's future. It loads most highly onto the fatalistic question about whether the family can survive another problem.
+
+Factor 4 describes violent discipline. It is less strongly related to experience of turmoil involved in disciplinary actions ("When I discipline my children, I have a hard time keeping my feelings under control"). 
+
+Several questions do not load very well onto any factor. This is a potential area for improvement in the survey. If these questions are intended to measure one of the 4 above constructs, then they are doing a poor job. If the questions were intended to measure some other construct, then we would like to have multiple questions to measure this additional construct (and these should form an additional factor).
+
+ - "I praise my children when they behave well" does not load onto any factor. It's possible this is because most parents responded affirmatively to this question (low variance). It would be useful to look at the original data to see if that is the case. I would suggest removing the qualifier on this question to measure praise more generally, "I praise my children", or if the goal is to measure how behavior is rewarded, I would suggest some additional questions to measure this construct: "I give my children a reward when they behave well" and "I scold my children when they behave poorly".
+
+ - Several questions use "effort" language like "I try", "I struggle", "I have a hard time". I suspect that these questions are conflating the parent's behavior with their self-perception in some way. I would suggest avoiding this type of language in order to better measure behavior.
+
+The communication and support factor (#1) includes many question. I suspect that this was intended to be two or three different constructs (communication within the family, internal support, and external support), but the data shows that these are probably too highly correlated to be distinguished. I think we can remove many of these questions.
+
+The family outlook factor (#3) is poorly defined. If this is an intended construct, some additional questions are warranted here to better describe it. It may be useful to ask more specific questions regarding financial challenges, marital challenges, and housing arrangements.
+
+
+
