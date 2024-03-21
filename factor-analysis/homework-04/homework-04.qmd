@@ -1,0 +1,154 @@
+---
+title: "Homework 4"
+author: "Langdon Holmes"
+date-modified: "today"
+subtitle: "Factor Analysis"
+format: pdf
+code-fold: true
+code-overflow: wrap
+editor: 
+  markdown: 
+    wrap: 80
+---
+
+## Data
+
+```{r, message=FALSE, warning=FALSE}
+values <- c(
+1.00,
+.318, 1.000,
+.436, .419, 1.0,
+.335, .234, .323, 1.00,
+.304, .157, .283, .722, 1.00,
+.326, .195, .350, .714, .685, 1.00,
+.116, .057, .056, .203, .246, 0.17, 1.00,
+.314, .145, .229, .095, .181, .113, .585, 1.00,
+.489, .239, .361, .309, .345, .280, .408, .512, 1.00
+)
+
+names <- c("VP", "CU", "LZ", "PC", "SC", "WM", "AD", "CD", "ST")
+
+x <- diag(9)
+# Values are inserted column-wise, so we add to the upper tri
+x[upper.tri(x, diag=TRUE)] <- values
+# add the transpose to get the lower left
+# but this results in 2.0 on the diagonal,
+# so subtract diag() to get the full correlation matrix
+x <- x + t(x) - diag(9)
+rownames(x) <- names
+colnames(x) <- names
+x
+```
+
+## Confirmatory Factor Analysis
+I construct two CFA models using different strategies to permit model identification. The first model, `constrained_variance_fit`, fixes the variance of the latent factors to 1 using the `std.lv` argument. The second model, `constrained_loadings_fit`, fixes the factor loading of the first indicator to 1 for each latent variable (default behavior). These two models should be equivalent in terms of their fit statistics and the reproduced correlation matrix.
+
+```{r, message=FALSE, warning=FALSE}
+library(lavaan)
+
+spec <- 
+' visual_perception =~ VP + CU + LZ
+  verbal_ability =~ PC + SC + WM
+  speed =~ AD + CD + ST '
+
+constrained_variance_fit <- cfa(spec, sample.cov = x, sample.nobs = 145, std.lv=TRUE)
+constrained_loadings_fit <- cfa(spec, sample.cov = x, sample.nobs = 145)
+summary(constrained_variance_fit, fit.measures = TRUE)
+summary(constrained_loadings_fit, fit.measures = TRUE)
+parameterEstimates(constrained_variance_fit)
+```
+The lower bound of the RMSEA estimate is greater than 0.05, indicating that we have not achieved close fit with these models. However, the fit is not terrible, and I still think there may be value in exploring the factor loadings.
+
+#### Path Diagrams
+
+```{r}
+library(semPlot)
+semPaths(constrained_loadings_fit, "std")
+semPaths(constrained_variance_fit, "std")
+```
+
+#### Hypothesis Test One
+We can use a Wald test to see if the correlation/covariance of visual perception and verbal ability is significantly not 0. This is provided in the output, and the p-value is <.05 for both models. We cannot reject the null hypothesis that the correlation between visual perception and verbal ability is 0. 
+
+
+### Constrained Covariance Model
+
+The `orthogonal_constrained_variance_fit` model has the additional constraint that the latent factors for visual perception and verbal ability are not correlated. This model is nested within the `constrained_variance_fit` model that allows these latent factors to covary.
+
+```{r}
+orthogonal_spec <- 
+' visual_perception =~ VP + CU + LZ
+  verbal_ability =~ PC + SC + WM
+  speed =~ AD + CD + ST 
+# fix the covariance of visual_perception and verbal ability to 0
+  visual_perception ~~ 0*verbal_ability
+'
+
+# orthogonal_constrained_loadings_fit <- cfa(orthogonal_spec, sample.cov = x, sample.nobs = 145)
+orthogonal_constrained_variance_fit <- cfa(orthogonal_spec, sample.cov = x, sample.nobs = 145, std.lv=TRUE)
+# summary(orthogonal_constrained_loadings_fit, fit.measures = TRUE)
+summary(orthogonal_constrained_variance_fit, fit.measures = TRUE)
+```
+
+#### Hypothesis Test Two
+
+To test the null hypothesis that visual perception and verbal ability do not covary, we can perform a chi-square test by subtracting the less restricted model's chi-square statistic and degrees of freedom from the more restricted model. This results in a significant chi-square test, which means we have evidence that the constrained model does not fit as well as the less constrained model. This means we cannot reject the null hypothesis that the covariance between visual perception and verbal ability is 0. This result aligns with the Wald test.
+
+```{r}
+chi <- fitMeasures(orthogonal_constrained_variance_fit, "chisq") - fitMeasures(constrained_variance_fit, "chisq")
+df <- fitmeasures(orthogonal_constrained_variance_fit, "df") - fitMeasures(constrained_variance_fit, "df")
+cat("Chi-square:", chi, "\ndf:", df, "\n")
+cat("P-value of Chi-square Test:", pchisq(chi, df, lower.tail=FALSE))
+```
+
+## femme modele
+
+### Data
+
+```{r}
+discrim.names <- c("disadv", "priv", "prej", "pastPrej", "like", "value", "pride", "pos", "esteem", "satisf", "affect", "depres", "anx")
+
+discrim.values <- c(
+  1.0,
+  .47, 1.0,
+  .20, .27, 1.0,
+  .47, .36, .29, 1.0,
+  .10, .17, .07, .05, 1.0,
+  .01, .06, .03, -.08, .74, 1.0,
+  .08, .23, .06, .09, .72, .63, 1.0,
+  .16, .27, .04, -.01, .67, .59, .65, 1.0,
+  -.01, -.03, -.14, -.14, .14, .20, .13, .19, 1.0,
+  -.04, .00, -.07, -.10, .11, .13, .12, .12, .70, 1.0,
+  -.06, -.06, -.11, -.18, .09, .15, .08, .17, .57, .50, 1.0,
+  .06, .04, .25, .13, .03, .08, .02, .00, -.45, -.52, -.36, 1.0,
+  .14, .05, .12, .15, -.08, -.07, -.10, -.12, -.46, -.65, -.42, .53, 1.0
+)
+
+discrim.x <- diag(13)
+discrim.x[upper.tri(discrim.x, diag=TRUE)] <- discrim.values
+discrim.x <- discrim.x + t(discrim.x) - diag(13)
+rownames(discrim.x) <- discrim.names
+colnames(discrim.x) <- discrim.names
+discrim.x
+```
+
+### Higher Order Latent Factor Model
+
+```{r}
+spec <-
+' inGroupId =~ perceivedDiscrim + like + value + pride + pos
+  perceivedDiscrim =~ disadv + priv + prej + pastPrej
+  psychWellBeing =~ perceivedDiscrim + inGroupId + satisf + esteem + affect + anx + depres '
+
+fit <- cfa(spec, sample.cov = discrim.x, sample.nobs = 220, std.lv=TRUE)
+summary(fit, fit.measures=TRUE)
+```
+I fit a higher-order factor model for female participants in the study by Schmitt et al. (2002). The lower bound of the RMSEA estimate for this model is greater than 0.05, indicating that the fit is not excellent. There are three latent factors: in-group identification, perceived discrimination, and well-being. Well-being loads onto both perceived discrimination and in-group identification, and perceived discrimination loads onto in-group identification. Well-being is negatively loaded by perceived discrimination but positively loaded by in-group identification. Perceived discrimination is also positively loaded by in-group identification. The model suggests that in-group identification leads to both well-being and perceived discrimination, even though perception of discrimination leads to decreased well-being. Overall, this feminine model is compatible with the two-gender model presented in the paper.
+
+#### Path Diagram
+
+```{r}
+semPaths(fit, "std")
+```
+
+

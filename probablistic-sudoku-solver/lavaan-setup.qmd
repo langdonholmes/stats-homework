@@ -1,0 +1,155 @@
+# Solve a Sudoku with Lavaan
+
+The goal is to solve a sudoku by specifying a model in Lavaan that represents an incomplete sudoku grid.
+
+By applying constraints to the model parameters, it is theoretically possible to estimate the unique solution for the grid.
+
+```{r}
+library(sudoku)
+sudoku_grid <- generateSudoku(Nblank = 0)
+print(sudoku_grid)
+
+# Create a vector of variable names for the cells
+var_names <- paste0("x", 1:9, rep(1:9, each=9))
+
+# Create a vector of parameter specifications
+var_spec <- paste0(var_names, paste0(" =~ ", as.vector(sudoku_grid)))
+```
+```{r}
+data = as.data.frame(
+  t(as.vector(t(sudoku_grid))),
+  )
+colnames(data) <- var_names
+data[] <- lapply(data, function(x) factor(
+  x,
+  levels = c("1", "2", "3", "4", "5", "6", "7", "8", "9"),
+  ordered = TRUE)
+  )
+data
+# data <- factor(credit_rating, ordered = TRUE, 
+                                # levels = c("AAA", "AA", "A", "BBB"))
+```
+
+
+```{r}
+library(lavaan)
+
+sudoku_model <- '
+    # Constraints to ensure each row sums to 45
+    x11 + x12 + x13 + x14 + x15 + x16 + x17 + x18 + x19 == 45
+    x21 + x22 + x23 + x24 + x25 + x26 + x27 + x28 + x29 == 45
+    x31 + x32 + x33 + x34 + x35 + x36 + x37 + x38 + x39 == 45
+    x41 + x42 + x43 + x44 + x45 + x46 + x47 + x48 + x49 == 45
+    x51 + x52 + x53 + x54 + x55 + x56 + x57 + x58 + x59 == 45
+    x61 + x62 + x63 + x64 + x65 + x66 + x67 + x68 + x69 == 45
+    x71 + x72 + x73 + x74 + x75 + x76 + x77 + x78 + x79 == 45
+    x81 + x82 + x83 + x84 + x85 + x86 + x87 + x88 + x89 == 45
+    x91 + x92 + x93 + x94 + x95 + x96 + x97 + x98 + x99 == 45
+
+    # Constraints to ensure each column sums to 45
+    x11 + x21 + x31 + x41 + x51 + x61 + x71 + x81 + x91 == 45
+    x12 + x22 + x32 + x42 + x52 + x62 + x72 + x82 + x92 == 45
+    x13 + x23 + x33 + x43 + x53 + x63 + x73 + x83 + x93 == 45
+    x14 + x24 + x34 + x44 + x54 + x64 + x74 + x84 + x94 == 45
+    x15 + x25 + x35 + x45 + x55 + x65 + x75 + x85 + x95 == 45
+    x16 + x26 + x36 + x46 + x56 + x66 + x76 + x86 + x96 == 45
+    x17 + x27 + x37 + x47 + x57 + x67 + x77 + x87 + x97 == 45
+    x18 + x28 + x38 + x48 + x58 + x68 + x78 + x88 + x98 == 45
+    x19 + x29 + x39 + x49 + x59 + x69 + x79 + x89 + x99 == 45
+
+    # Constraints to ensure each 3x3 box sums to 45
+    x11 + x12 + x13 + x21 + x22 + x23 + x31 + x32 + x33 == 45
+    x14 + x15 + x16 + x24 + x25 + x26 + x34 + x35 + x36 == 45
+    x17 + x18 + x19 + x27 + x28 + x29 + x37 + x38 + x39 == 45
+    x41 + x42 + x43 + x51 + x52 + x53 + x61 + x62 + x63 == 45
+    x44 + x45 + x46 + x54 + x55 + x56 + x64 + x65 + x66 == 45
+    x47 + x48 + x49 + x57 + x58 + x59 + x67 + x68 + x69 == 45
+    x71 + x72 + x73 + x81 + x82 + x83 + x91 + x92 + x93 == 45
+    x74 + x75 + x76 + x84 + x85 + x86 + x94 + x95 + x96 == 45
+    x77 + x78 + x79 + x87 + x88 + x89 + x97 + x98 + x99 == 45
+'
+
+sudoku_fit <- sem(
+  sudoku_model,
+  data=data,
+  ordered=TRUE
+)
+
+```
+```{r}
+# Define the lavaan model for Sudoku
+sudoku_model <- paste(
+  # Define observed variables for each cell
+  paste(cell_vars, "~ 1", collapse = " + "), 
+
+  # Constraints to ensure each row sums to 45
+  paste(apply(matrix(cell_vars, nrow=9, byrow = TRUE), 1, function(row) paste(row, "==45")), collapse = " + "),
+
+  # Constraints to ensure each column sums to 45
+  paste(apply(matrix(cell_vars, ncol = 9, byrow = FALSE), 2, function(col) paste(col, "==45")), collapse = " + "),
+
+  # Constraints to ensure each 3x3 box sums to 45
+  paste(apply(matrix(cell_vars, ncol = 9), 1, function(box) paste(box, "==45")), collapse = " + "),
+
+  # Constraints to ensure each value is between 1 and 9
+  paste(paste(cell_vars, ">= 1"), collapse = " + "),
+  paste(paste(cell_vars, "<= 9"), collapse = " + ")
+)
+# Fit the model
+sudoku_fit <- sem(model = sudoku_model, fixed.x = TRUE)
+
+# Extract the solution
+solution <- lavaan::coef(sudoku_fit)
+
+# Print the solution
+print(solution)
+```
+```{r}
+
+# Define the lavaan model for Sudoku
+sudoku_model <- paste(
+  # Define observed variables for each cell
+  paste(var_spec, "", collapse = " + "), 
+
+  # # Constraints to ensure each row sums to 45
+  # paste(apply(matrix(var_names, nrow = 9, byrow = TRUE), 1, function(row) paste(row, "==45")), collapse = " + "),
+  # 
+  # # Constraints to ensure each column sums to 45
+  # paste(apply(matrix(var_names, ncol = 9, byrow = FALSE), 2, function(col) paste(col, "==45")), collapse = " + "),
+  # 
+  # # Constraints to ensure each 3x3 box sums to 45
+  # paste(apply(matrix(var_names, ncol = 9), 1, function(box) paste(box, "==45")), collapse = " + "),
+
+  # Constraints to ensure each value is between 1 and 9
+  paste(paste(var_names, ">= 1"), collapse = " + "),
+  paste(paste(var_names, "<= 9"), collapse = " + ")
+  
+  # Constraints to ensure each row contains a complete set of the digits 1-9
+  # paste(apply(matrix(var_names, nrow = 9, byrow = TRUE), 1, function(row) {
+  #   paste(paste(var_names, "==", row), collapse = " & ")
+  # }), collapse = " + "),
+  # 
+  # # Constraints to ensure each column contains a complete set of the digits 1-9
+  # paste(apply(matrix(var_names, ncol = 9, byrow = FALSE), 2, function(col) {
+  #   paste(paste(var_names, "==", col), collapse = " & ")
+  # }), collapse = " + "),
+
+  # Constraints to ensure each 3x3 box contains a complete set of the digits 1-9
+  # paste(apply(matrix(var_names, ncol = 9), 1, function(box) {
+  #   paste(paste(var_names, "==", box), collapse = " & ")
+  # }), collapse = " + ")
+)
+
+print(sudoku_model)
+# Fit the model
+sudoku_fit <- sem(model = sudoku_model, fixed.x = TRUE, int.ov.free = TRUE)
+
+# Extract the solution
+solution <- lavaan::coef(sudoku_fit)
+
+# Print the solution
+print(solution)
+
+```
+
+

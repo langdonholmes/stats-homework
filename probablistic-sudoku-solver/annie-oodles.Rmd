@@ -1,0 +1,186 @@
+# pb child: SE of interest
+
+```{r, echo=FALSE}
+# pacman is the recomended method for installing and loading required pkgs
+# Added some parallel computing packages.
+# doSNOW is mainly used to get a progress bar. It is a parallel backend.
+# foreach adds a method for using parallel with loops
+# this saves me the trouble of refactoring the code to work with *apply funcs
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(scales, parallel, foreach, doSNOW)
+
+# Reserve 50 CPU cores (divides 100 nicely; leaves 14 cores for other stuff)
+cl <- makeCluster(50) # cl is canonical abbreviation for "cluster"
+registerDoSNOW(cl)
+```
+
+# Model Forms
+linear
+modform <- y~a+b*x
+modfunc <- "a+b*x"
+quadratic
+
+```{r}
+modform <- y~a+b*x+c*(x^2)
+modfunc <- "a+b*x+c*(x^2)"
+```
+
+# Define Functions
+
+```{r}
+str_eval=function(f){return(eval(parse(text=f)))}
+
+# Counting params for some reason
+count_params <- function(modfunc) {
+  for (i in 1:25) {
+    current_letter <- charToRaw(letters[i])
+    next_letter <- charToRaw(letters[i + 1])
+    if (grepl(rawToChar(current_letter), modfunc) && !grepl(rawToChar(next_letter), modfunc)) {
+      return(i)}}}
+```
+
+# The meaty bits
+
+```{r}
+Tnum <- 8
+num_loops <- 10
+
+Tmin <- -2
+Tmax <- 2
+a <- 0
+b <- 0
+c <- 1
+sigma <- 1e-5
+
+# create grid for search
+points <- seq(Tmin+0.1*(Tmax-Tmin),Tmax-0.1*(Tmax-Tmin),0.1*(Tmax-Tmin))
+points_list <- replicate(Tnum-2, points, simplify = FALSE)
+
+# 531,441 intersections
+# 50 for testing
+intersections <- as.data.frame(do.call(expand.grid, points_list))
+
+# iterate through the alphabet to count SEs & set up DF
+num_SEs <- count_params(modfunc)
+df <- data.frame(matrix(0, ncol = num_SEs+Tnum, nrow = nrow(intersections)))
+Tnames <- sprintf("time%d", seq(1:Tnum))
+SEnames <- sprintf("SE_%s", letters[seq(0,num_SEs)])
+colnames(df)<-c(Tnames, SEnames)
+df[ ,1:Tnum]<-c(Tmin, intersections, Tmax)
+  
+# Set up progress bar  
+pb <- txtProgressBar(max=nrow(df), style=3)
+progress <- function(n) setTxtProgressBar(pb, n)
+opts <- list(progress=progress)
+
+output <- foreach(
+  rep=1:100,
+  .combine=rbind,
+  .options.snow=opts,
+  .packages="scales") %dopar% {
+  
+  # set up plot
+  x <- seq(Tmin, Tmax, by=((Tmax-Tmin)/100))
+  plot(x, str_eval(modfunc), type = "l", lwd=3, col="skyblue")
+
+  ####FIRST PASS
+  # copy df and assign it to a local variable
+  local_df <- df
+  
+  # Conduct first pass on grid
+  for (j in 1:nrow(local_df)) { 
+    try(
+      {
+        x <- sort(as.numeric(local_df[j,1:Tnum]))
+        time_vector <- matrix(0, ncol = num_SEs, nrow = num_loops)
+        for (l in 1:nrow(time_vector)) {
+          y <- rnorm(Tnum, str_eval(modfunc), sigma)
+          data <- as.data.frame(cbind(x,y))
+          modeli <- nls(modform, data, start=list(a=0,b=0,c=0), control=nls.control(maxiter=100))
+          time_vector[l, ] <- summary(modeli)$coefficients[ ,2]
+          }
+        time_vector <- time_vector[time_vector[,1]>0,]
+        local_df[j, ]<-c(x,colMeans(time_vector))}, silent=TRUE)
+    }
+
+  #### LATER PASSES
+ 
+  previous_opt <- NULL  # To store the output of the previous iteration
+  current_opt <- NULL   # To store the output of the current iteration
+  threshold <- 0.50        # The threshold for the difference
+  max_iterations <- 50  # Maximum number of iterations to prevent infinite loop
+  difference <- NULL
+  consecutive_below_threshold <- 0
+  first_opt <- as.data.frame(local_df[which.min(local_df$SE_c),2:(Tnum-1)])
+ 
+  for (iter in 1:max_iterations) {
+    current_opt <- as.data.frame(local_df[which.min(local_df$SE_c),2:(Tnum-1)])
+   
+    # plot 
+    # questioning whether as.numeric() will scale?
+    x <- as.numeric(current_opt)
+    points(x, str_eval(modfunc), pch=16, col=alpha("hotpink", (iter/30)))
+   
+    # create grid
+    points <- matrix(0, ncol = 9, nrow = length(current_opt))
+    for (j in 1:(Tnum-2)) {
+      points[j, ] <- qnorm(c(.1,.2,.3,.4,.5,.6,.7,.8,.9),current_opt[1,j], 0.5*(Tmax-Tmin)/(iter/2))
+      outside <- c(which(points < Tmin), which(points > Tmax))
+      points[outside] <- NA}
+    gridfunc <- noquote(paste("expand.grid(",paste(c(sprintf("points[%d,]", seq(1:length(current_opt)))),collapse = ' , '),")"))   
+    grid <- str_eval(gridfunc)
+    grid <- na.omit(grid)
+    local_df <- data.frame(matrix(0, ncol = num_SEs+Tnum, nrow = nrow(grid)))
+    colnames(df)<-c(Tnames, SEnames)
+    local_df[ ,1:Tnum]<-c(Tmin, grid, Tmax)
+   
+    # test grid intersections
+    for (k in 1:nrow(local_df)) {
+      try({ x <- sort(as.numeric(local_df[k,1:Tnum]))
+      time_vector <- matrix(0, ncol = num_SEs, nrow = num_loops)                       
+      for (l in 1:nrow(time_vector)) {try({
+        y <- rnorm(Tnum, str_eval(modfunc), sigma)
+        data <- as.data.frame(cbind(x,y))
+        modeli <- nls(modform, data, start=list(a=0,b=0,c=0), control=nls.control(maxiter=100))
+        time_vector[l, ] <- summary(modeli)$coefficients[ ,2]}, silent=TRUE)}
+      time_vector <- time_vector[time_vector[,1]>0,]
+      local_df[k, ]<-c(x,colMeans(time_vector))}, silent=TRUE)}
+    local_df <- local_df[local_df[[Tnum+1]] != 0, ]
+   
+    # record current opt
+    current_opt <- as.numeric(local_df[which.min(local_df$SE_c),2:(Tnum-1)])
+    opt <- sort(c(Tmin, current_opt, Tmax))
+   
+    # plot results
+    x <- current_opt
+    points(x, str_eval(modfunc), pch=16, col=alpha("lightgreen", 1))
+   
+    # stopping rule
+    if (!is.null(previous_opt)) {difference <- abs(current_opt - previous_opt)
+    if (all(difference < threshold)) {
+      consecutive_below_threshold <- consecutive_below_threshold + 1
+      if (consecutive_below_threshold >= 3) {
+        cat(sprintf("Stopping loop at iteration %d due to small differences in all components for at least 3 consecutive runs.\n", iter))
+        break }} else {consecutive_below_threshold <- 0 
+        }} else {difference <- rep(NA, length(current_opt))}
+    previous_opt <- current_opt
+
+  return(c(opt,a,b,c,num_loops,max(difference),iter,threshold))
+  }
+}
+
+simDF <- data.frame(output)
+close(pb)
+```
+
+#does not scale!!
+
+```{r}
+# Clean up the cluster
+# Releases the CPU cores that were reserved
+stopCluster(cl)
+
+# It looks like "opt" is not being saved here...
+colnames(simDF) <- c("Tmin", "Tmax", "a","b","c","num_loops","max_difference","max_iter","threshold")
+write.csv(simDF, file = "simDF_quad_slope_stop_300loops_2.csv")
+```
