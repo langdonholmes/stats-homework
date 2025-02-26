@@ -1,0 +1,117 @@
+```{r}
+library(ltm)
+library(irtoys)
+library(tidyverse)
+
+cri_responses <- read.csv("~/stats-homework/irt/cri/data/cri_responses.csv") %>% 
+  mutate(score = ifelse(score == 2, 1, score))
+
+responses_wide <- cri_responses[c("user_id", "score", "chunk_slug")] %>% 
+  pivot_wider(
+    id_cols = user_id,
+    names_from = chunk_slug,  # or whatever column identifies your items
+    values_from = score
+  )
+
+responses_wide
+```
+
+```{r}
+cri_responses %>%
+  group_by(user_id) %>%
+  summarise_at(vars(score), funs(mean(., na.rm=TRUE)))
+```
+
+
+```{r}
+response_matrix <- subset(responses_wide, select = -user_id)
+```
+
+
+```{r}
+rasch <- est(response_matrix, model="1PL", engine="ltm", rasch=T)
+
+rasch_tibble <- tibble(
+  item = names(response_matrix),
+  estimate = rasch$est[,2],
+  se = rasch$se[1:16,2]
+) %>% 
+  mutate_if(is.numeric, round, 2)
+rasch_tibble
+```
+
+```{r}
+rasch.th <- eap(resp=response_matrix, ip=rasch$est, qu=normal.qu())
+```
+
+
+```{r}
+fsc <- factor.scores(rasch(response_matrix))
+plot(fsc,include.items=TRUE)
+```
+```{r}
+plot(irf(rasch$est),label=TRUE)
+```
+```{r}
+# Test Characteristic Curves
+scp(response_matrix, rasch$est) #The observed sum scores are shown in red.
+
+
+plot(tif(Rasch$est),label=TRUE) # Plot test information function
+
+```
+
+```{r}
+plot(iif(rasch$est),label=TRUE)
+```
+```{r}
+twopl <- est(response_matrix, model="2PL", engine="ltm")
+
+twopl_tibble <- tibble(
+  item = names(response_matrix),
+  estimate = twopl$est[,2],
+  se = twopl$se[1:16,2]
+) %>% 
+  mutate_if(is.numeric, round, 2)
+twopl_tibble
+
+```
+
+```{r}
+##Calculating correlations
+
+#correlation(Rasch difficulty,2PL difficulty)
+Rasch.difficulty <- as.matrix(rasch$est[,2])
+Two.difficulty <- as.matrix(twopl$est[,2])
+
+corr.difficulty <- cor(Rasch.difficulty,Two.difficulty)
+corr.difficulty
+
+
+#correlation(Rasch difficulty SE,2PL difficulty SE)
+Rasch.difficulty.SE <- as.matrix(rasch$se[1:16,2])
+Two.difficulty.SE <- as.matrix(twopl$se[,2])
+
+corr.difficulty.SE <- cor(Rasch.difficulty.SE, Two.difficulty.SE, use="complete")
+corr.difficulty.SE
+```
+
+
+```{r}
+#correlation(Rasch scores,2PL scores)
+Rasch.scores <- as.matrix(rasch.th[,1])
+twopl.th <- eap(resp=response_matrix, ip=twopl$est, qu=normal.qu())
+Two.scores <- as.matrix(twopl.th[,1])
+ 
+corr.scores <- cor(Rasch.scores,Two.scores)
+corr.scores
+
+
+#correlation(Rasch scores SE,2PL scores SE)
+Rasch.scores.SE <- as.matrix(rasch.th[,2])
+Two.scores.SE <- as.matrix(twopl.th[,2])
+ 
+corr.scores.SE <- cor(Rasch.scores.SE,Two.scores.SE)
+corr.scores.SE
+```
+
