@@ -1,0 +1,184 @@
+#######################################
+## Call libraries eRm, ltm, and mirt
+
+```{r}
+library(eRm)
+library(ltm)
+library(mirt)
+```
+
+################################################
+## Importing polytomous data (polytomous.txt) ##
+################################################
+```{r}
+poly <- read.table("polytomous.txt",header=TRUE)
+poly[1:10,] # Checking the first 10 rows
+poly[,1:10] # Checking the first 10 columns
+poly[1:10,1:10] # Checking the first 10 rows and 10 columns
+
+poly_10 <- poly[ ,10:20]
+```
+
+
+
+###############################################################
+## Fitting a rating scale model using 'eRm': Conditional MLE ##
+###############################################################
+# Item parameters
+```{r}
+rsm <- RSM(poly, se = TRUE, sum0 = TRUE)
+rsm
+```
+
+
+
+summary(thresholds(rsm))
+      
+# Person parameters: MLE
+```{r}
+rsm_person <- person.parameter(rsm)
+# summary(rsm_person)
+```
+
+
+
+
+# CCC
+```{r}
+# plotICC(rsm, item.subset=23:23) # Item 23
+plotICC(rsm, item.subset=23)
+plotICC(rsm, item.subset=24)
+plotICC(rsm, item.subset=25)
+```
+
+
+# Item Information function
+plotINFO(rsm, type="item")
+
+# Test information function
+plotINFO(rsm, type="test")
+
+plotINFO(rsm)
+
+
+# Wright map
+```{r}
+plotPImap(rsm, sorted=TRUE, warn.ord.colour=TRUE, irug=TRUE)
+
+plotPImap(rsm, sorted=F, warn.ord.colour=TRUE, irug=TRUE)
+```
+
+
+#warn.ord.colour=TRUE: Nonordinal threshold locations for polytomous items are coloured with this
+#colour to make them more visible. This is especially useful when there are
+#many items so that the plot is quite dense. The default is "black", so that there
+#is no distinction made.
+
+#irug=TRUE: If TRUE (the default), all thresholds are plotted below the person distribution to
+#indicate where the included items are most informative.
+
+
+#################################################################
+## Fitting a partial credit model using 'eRm': Conditional MLE ##
+#################################################################
+```{r}
+pcm <- PCM(poly, se = TRUE, sum0 = TRUE)
+pcm
+
+summary(thresholds(pcm))
+```
+
+
+
+# Person parameters: MLE
+```{r}
+pcm_person <- person.parameter(pcm)
+# summary(pcm_person)
+```
+
+# CCC
+```{r}
+plotICC(pcm, item.subset=23:23) # Item 23
+```
+
+
+# Item & test Information functions
+plotINFO(pcm)
+
+
+# Wright map
+```{r}
+plotPImap(pcm, sorted=TRUE)
+```
+
+
+##########################################################################
+## Fitting a generalized partial credit model using 'ltm': Marginal MLE ##
+##########################################################################
+# Item parameters
+gpcm <- gpcm(poly, IRT.param = TRUE)
+summary(gpcm)
+
+
+# Person parameters
+gpcm_person <- factor.scores(gpcm)
+
+
+##################################################
+## Fitting a graded response model using 'mirt' ##
+##################################################
+
+grm <- mirt(poly, 1, itemtype='graded', method="EM", SE=TRUE, technical = list(message = TRUE)) 
+coef.grm <-coef(grm, printSE=TRUE, as.data.frame=TRUE) 
+coef.grm  #a*theta + d; Linear parameterization
+
+
+# Use IRT parameterization for HW and a course project
+coef.grm.IRT <-coef(grm, printSE=TRUE, IRTpars=TRUE, as.data.frame=TRUE) 
+coef.grm.IRT   #alpha(theta - threshold); IRT parameterization
+
+
+
+# Person parameters
+theta<-fscores(grm, full.scores.SE=TRUE) 
+theta[1:10,]
+write.table(theta, file="C:/Teaching/IRT I_2025 Spring/Labs/Lab 3/theta.txt", sep = "\t", row.names=F)
+
+# CCC
+itemplot(grm, 1) #CCC for item 1      #CCC based on GPCM-like thresholds
+
+itemplot(grm, 1, type='threshold')    #CCC based on GRM thresholds
+
+
+# Item & test Information functions
+itemplot(grm, 1, type = 'info') #item information for item 1
+plot(grm, type = 'info') #test information for all items
+
+
+
+
+################################
+## Rasch model for Wright map ##
+################################
+
+
+## Rasch model
+
+binary <- read.table("C:/Teaching/IRT I_2025 Spring/Labs/Lab 2/binary.txt",header=TRUE)
+
+# eRM: sum to 0 for item locations; conditional MLE
+library(eRm)
+Rasch_erm <- RM(binary, se = TRUE, sum0 = FALSE)
+Rasch_erm
+plotPImap(Rasch_erm, sort=TRUE)
+
+# irtoys: mean of ability=0 constraint; marginal MLE
+library(irtoys)
+library(ltm)
+Rasch_irtoys <- est(binary,model="1PL",engine="ltm",rasch=TRUE)
+Rasch_irtoys
+fsc <- factor.scores(rasch(binary))
+plot(fsc,include.items=TRUE)
+
+
+#################

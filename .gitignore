@@ -1,3 +1,4 @@
+.env
 .Rproj.user
 .Rhistory
 .RData
@@ -11,3 +12,4 @@ data
 renv
 .devcontainer
 *_files
+results

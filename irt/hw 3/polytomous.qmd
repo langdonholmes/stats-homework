@@ -1,0 +1,119 @@
+```{r}
+library(eRm)
+library(ltm)
+library(tidyverse)
+
+cri_responses <- read.csv("~/stats-homework/irt/cri/data/cri_responses_w_o3_scores.csv")
+
+responses_wide <- cri_responses[c("user_id", "o3_mini_score", "chunk_slug")] %>%
+  rename(score = o3_mini_score) %>%
+  mutate(score = case_when(
+    score %in% c(1, 2) ~ 0,
+    score == 3 ~ 1,
+    score %in% c(4, 5) ~ 2
+  )) %>% 
+  mutate(chunk_id = stringr::str_extract(chunk_slug, "[^-]+$")) %>%
+  pivot_wider(
+    id_cols = user_id,
+    names_from = chunk_id,
+    values_from = score
+  )
+
+responses_wide
+```
+
+```{r}
+sapply(responses_wide, function(y) sum(length(which(is.na(y)))))
+
+table(response_matrix[2])
+```
+
+
+```{r}
+cri_responses %>%
+  group_by(user_id) %>%
+  summarise_at(vars(score), ~ mean(., na.rm=TRUE))
+```
+
+
+```{r}
+response_matrix <- subset(responses_wide, select = -user_id)
+```
+
+```{r}
+rsm <- RSM(response_matrix, se=TRUE, sum0=TRUE)
+rsm.thresholds <- thresholds(rsm)
+```
+
+```{r}
+sink("rsm.txt") # Start redirecting output
+summary(rsm.thresholds)
+sink() # Stop redirecting output
+```
+
+```{r}
+pcm <- PCM(response_matrix, se = TRUE, sum0 = TRUE)
+pcm.thresholds <- thresholds(pcm)
+```
+
+```{r}
+sink("pcm.txt")
+summary(pcm.thresholds)
+sink()
+```
+
+## Item Characteristic Curves
+
+```{r}
+items = c(1, 10, 14)
+
+for (it in items) {
+  plotICC(rsm, item.subset=it)
+  plotICC(pcm, item.subset=it)
+}
+```
+
+
+
+## Create Wright Maps
+
+```{r}
+plotPImap(rsm, sorted=TRUE, warn.ord.colour=TRUE, irug=TRUE)
+```
+
+```{r}
+plotPImap(pcm, sorted=TRUE, warn.ord.colour=TRUE, irug=TRUE)
+```
+# Test information
+
+```{r}
+plotINFO(rsm, type="item")
+plotINFO(pcm, type="item")
+```
+
+# Person Parameters
+```{r}
+rsm.person <- person.parameter(rsm)
+pcm.person <- person.parameter(pcm)
+```
+```{r}
+# Both have total score of 8
+# 202 NAgroup181
+# 204 NAgroup185
+a_est_rsm <- rsm.person$pred.list$`202`$y
+b_est_rsm <- rsm.person$pred.list$`204`$y
+a_se_rsm <- rsm.person$se.theta$NAgroup181
+b_se_rsm <- rsm.person$se.theta$NAgroup185
+
+a_est_pcm <- pcm.person$pred.list$`202`$y
+b_est_pcm <- pcm.person$pred.list$`204`$y
+a_se_pcm <- pcm.person$se.theta$NAgroup181
+b_se_pcm <- pcm.person$se.theta$NAgroup185
+```
+
+```{r}
+t <- response_matrix[c(202,204),]
+write.table(t,"202_204.tsv",sep="\t",row.names=FALSE)
+```
+
+
