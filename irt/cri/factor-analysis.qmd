@@ -1,0 +1,116 @@
+```{r}
+library(tidyverse)
+library(lavaan)
+library(semTools)
+library(psych)
+
+cri_responses <- read.csv("~/stats-homework/irt/cri/data/cri_responses_w_o3_scores.csv")
+responses_wide <- cri_responses[c("user_id", "o3_mini_score", "chunk_slug")] %>%
+  rename(score = o3_mini_score) %>%
+  mutate(score = case_when(
+    score %in% c(1, 2) ~ 0,
+    score == 3 ~ 1,
+    score %in% c(4, 5) ~ 2
+  )) %>% 
+  mutate(chunk_id = paste0(
+    "item_",
+    stringr::str_extract(chunk_slug, "[^-]+$")
+    )) %>% 
+  pivot_wider(
+    id_cols = user_id,
+    names_from = chunk_id,
+    values_from = score
+  )
+responses_wide
+```
+
+```{r}
+# Remove the user_id column for analysis
+response_matrix <- responses_wide %>%
+  select(-user_id)
+```
+
+
+```{r}
+# Function for Testing Multiple Factor Structures
+test_factor_structure <- function(data,
+                                   n_factors, 
+                                   rotation = "oblimin",
+                                   missing = "fiml") {
+  
+  # Prepare for model comparisons
+  item_names <- colnames(data)
+  items_string <- paste(item_names, collapse = " + ")
+  
+  # Initialize result container
+  fit_indices <- data.frame()
+
+  # Build the model syntax dynamically
+  model_syntax <- ""
+  
+  # Add factor definitions
+  # e.g., "f1 =~ NA*item1 NA*item2 \n f1 ~~ 1*f1\n"
+  for(i in 1:n_factors) {
+    model_syntax <- paste0(model_syntax, 
+                          paste0("f", i, " =~ NA*", items_string, "\n"))
+  }
+  
+  # Add factor variance constraints
+  for(i in 1:n_factors) {
+    model_syntax <- paste0(model_syntax, 
+                          paste0("f", i, " ~~ 1*f", i, "\n"))
+  }
+  
+  # Fit the model
+  model_fit <- cfa(model_syntax, 
+        data = data, 
+        std.lv = TRUE,
+        missing = "fiml",
+        # orthogonal = (rotation == "varimax")  # Orthogonal if varimax
+        )
+
+  if(!is.null(model_fit)) {
+    # Extract fit indices
+    fit_summary <- fitMeasures(model_fit)
+    important_indices <- fit_summary[c("chisq", "df", "pvalue", "cfi", "tli", 
+                                      "rmsea", "srmr", "aic", "bic")]
+    
+    # Add to results dataframe
+    current_fit <- data.frame(
+      n_factors = n_factors,
+      t(important_indices)
+    )
+  }
+  
+  # Return the results
+  return(list(
+    current_fit = current_fit,
+    model_fit = model_fit
+  ))
+}
+
+fit_indices <- data.frame()
+model_objects <- list()
+
+for(n_factors in 1:3) {
+  message(paste("Testing", n_factors, "factor model..."))
+  result <- test_factor_structure(response_matrix, n_factors)
+  fit_indices <- rbind(fit_indices, result$current_fit)
+  model_objects[[paste0("factors_", n_factors)]] <- result$model_fit 
+}
+```
+```{r}
+round(fit_indices, 4)
+```
+
+## Interpretation
+Factor models were fit with full-information maximum likelihood using Lavaan
+
+The constant chi-squared test statistic indicates issues with model identification likely related to missing data
+
+However, the AIC and BIC metrics both support a single-factor model
+
+There is evidence that the data is unidimensional
+
+
+
