@@ -1,0 +1,122 @@
+```{r}
+library(tidyverse)
+library(mirt)
+
+cri_responses <- read.csv("~/stats-homework/irt/cri/data/cri_responses_w_o3_scores.csv")
+
+responses_wide <- cri_responses[c("user_id", "o3_mini_score", "chunk_slug")] %>%
+  rename(score = o3_mini_score) %>%
+  mutate(score = case_when(
+    score %in% c(1, 2) ~ 0,
+    score %in% c(3) ~ 1,
+    score %in% c(4, 5) ~ 2
+  )) %>%
+  mutate(chunk_id = stringr::str_extract(chunk_slug, "[^-]+$")) %>%
+  pivot_wider(
+    id_cols = user_id,
+    names_from = chunk_id,
+    values_from = score
+  )
+
+# Extract just the response data (without user_id column)
+response_data <- responses_wide %>% 
+  select(-user_id)
+```
+
+## Cronbach's Alpha
+```{r}
+# Calculate Cronbach's alpha
+alpha_result <- psych::alpha(response_data)
+
+# Print the results
+# print(alpha_result)
+
+# For just the alpha value
+print(paste("Cronbach's alpha:", round(alpha_result$total$raw_alpha, 3)))
+```
+
+## GRM Separation Reliability
+```{r}
+grm_model <- mirt(response_data, 1, itemtype="graded", method="EM", SE=TRUE) 
+```
+
+```{r}
+# Extract item parameters
+item_params <- coef(grm_model, simplify=TRUE)$items
+
+# Extract person parameters (theta estimates and standard errors)
+theta_est <- fscores(grm_model, method="EAP")[,1]
+theta_sem <- fscores(grm_model, method="EAP", full.scores.SE=TRUE)[,2]
+
+# Calculate person separation reliability
+# Formula: reliability = variance(theta) / (variance(theta) + mean(SE^2))
+theta_var <- var(theta_est)
+mean_sem_squared <- mean(theta_sem^2)
+person_separation_reliability <- theta_var / (theta_var + mean_sem_squared)
+
+# Print the result
+print(paste("Person Separation Reliability:", round(person_separation_reliability, 3)))
+
+# For item separation, you might also want to look at item information functions
+plot(grm_model, type='info')
+
+# You can also get test information function
+plot(grm_model, type='infoSE')
+
+# Calculate marginal reliability across the theta distribution
+# This is an alternative measure of overall test reliability
+marg_rel <- marginal_rxx(grm_model)
+print(paste("Marginal Reliability:", round(marg_rel, 3)))
+```
+## Wright Map
+```{r}
+library(WrightMap)
+
+# Extract person ability estimates (thetas)
+person_thetas <- fscores(grm_model)
+
+# Extract item parameters (difficulty parameters)
+item_params <- coef(grm_model, simplify=TRUE)$items
+
+# For a graded model, we need to extract the threshold parameters
+# These are the difficulty parameters for each transition between score categories
+difficulty_params <- item_params[, grep("^d", colnames(item_params)), drop=FALSE]
+
+# Get item names
+item_names <- colnames(response_data)
+
+# Create the Wright Map
+wrightMap(person_thetas, difficulty_params, 
+          item.side = itemClassic, 
+          item.names = item_names,
+          dim.names = "Engagement",
+          main.title = "Wright Map"
+          )
+```
+
+
+```{r}
+# Alternative version with item locations represented as mean difficulty
+# Extract mean item difficulty (average of thresholds for each item)
+mean_difficulty <- apply(difficulty_params, 1, mean)
+
+# Create a simpler Wright Map with mean item difficulties
+wrightMap(person_thetas, mean_difficulty,
+          item.side = itemClassic,
+          item.names = item_names,
+          dim.names = "Engagement",
+          main.title = "Wright Map (Mean Item Difficulty)")
+```
+
+
+## Concurrent Validity with Post-test
+
+```{r}
+quiz_scores <- read.csv("~/active-projects/2024.05-CTTC/data/surveys/quiz_scores.csv")
+logical_values <- c(FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE, TRUE, TRUE, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE, FALSE)
+```
+
+
+
+
+

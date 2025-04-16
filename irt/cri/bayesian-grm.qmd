@@ -1,0 +1,236 @@
+```{r}
+library(brms)
+library(tidyverse)
+library(ggplot2)
+library(cowplot)
+
+cri_responses <- read.csv("~/stats-homework/irt/cri/data/cri_responses_w_o3_scores.csv")
+
+# Transform data
+responses_long <- cri_responses %>%
+  select(user_id, o3_mini_score, chunk_slug) %>%
+  rename(score = o3_mini_score) %>%
+  mutate(score = case_when(
+    score %in% c(1, 2) ~ 0,
+    score == 3 ~ 1,
+    score %in% c(4, 5) ~ 2
+  )) %>% 
+  mutate(item = stringr::str_extract(chunk_slug, "[^-]+$")) %>%
+  select(user_id, item, score) %>%
+  # Convert to factors as needed by brms
+  mutate(
+    user_id = as.factor(user_id),
+    item = as.factor(item),
+    # Ensure score is treated as an ordinal response
+    score = factor(score, ordered = TRUE)
+  )
+```
+
+## Fit Model
+
+```{r}
+# Fit Bayesian GRM using brms
+# Setting weakly informative priors
+prior_grm <- prior(normal(0, 3), class = "Intercept") +
+             prior(normal(0, 3), class = "sd", group = "user_id") +
+             prior(normal(0, 3), class = "sd", group = "item")
+
+# Formula specification for GRM
+# The (1|item) term allows item easiness parameters to vary
+# The (1|user_id) term allows person ability parameters to vary
+grm_formula <- bf(score ~ 1 + (1|item) + (1|user_id))
+
+# Fit the model
+# We're using the cumulative family for ordinal data with logit link
+fit_grm <- brm(
+  formula = grm_formula,
+  data = responses_long,
+  family = cumulative("logit"),
+  prior = prior_grm,
+  chains = 12,
+  cores = 12,
+  iter = 2000,
+  warmup = 1000,
+  control = list(adapt_delta = 0.95),  # Helps with convergence
+  seed = 42
+)
+```
+
+## Model Summary
+
+```{r}
+# Model summary
+summary(fit_grm)
+
+# Save Coefficients
+fit_grm.coef <- coef(fit_grm, summary=TRUE)
+
+# Extract person parameters (ability estimates)
+person_params <- fit_grm.coef$user_id[, , "Intercept[1]"]
+person_abilities <- data.frame(
+  ability = person_params[, "Estimate"],
+  se = person_params[, "Est.Error"]
+)
+
+# Extract item parameters
+item_params <- fit_grm.coef$item[, , "Intercept[1]"]
+item_difficulties <- data.frame(
+  item = levels(responses_long$item),
+  difficulty = -item_params[, "Estimate"],  # Negated to get difficulty instead of easiness
+  se = item_params[, "Est.Error"]
+)
+item_names <- levels(responses_long$item)
+
+# Get threshold parameters (for ordinal models)
+# Extract the threshold parameters
+thresholds <- fixef(fit_grm)[grep("Intercept", rownames(fixef(fit_grm))), "Estimate"]
+
+# Visualize item parameters
+ggplot(item_difficulties, aes(x = reorder(item, difficulty), y = difficulty)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = difficulty - se, ymax = difficulty + se), width = 0.2) +
+  coord_flip() +
+  labs(x = "Item", y = "Difficulty", title = "Item Difficulty Parameters") +
+  theme_minimal()
+
+# Visualize person abilities
+ggplot(person_abilities, aes(x = ability)) +
+  geom_histogram(bins = 30) +
+  labs(x = "Ability", y = "Count", title = "Distribution of Person Abilities") +
+  theme_minimal()
+```
+
+# Create a Wright Map
+
+```{r}
+# Calculate actual thresholds for each item
+item_thresholds <- data.frame()
+for(i in 1:nrow(item_difficulties)) {
+  item_name <- item_difficulties$item[i]
+  item_diff <- item_difficulties$difficulty[i]
+  
+  # For a 3-category model, we have 2 thresholds
+  # The first threshold is the base difficulty
+  threshold1 <- item_diff
+  # The second threshold is typically higher (for ordinal GRM)
+  # This is the point where probability of highest category exceeds middle category
+  threshold2 <- item_diff + abs(thresholds[2] - thresholds[1])
+  
+  item_thresholds <- rbind(item_thresholds, 
+                          data.frame(
+                            item = item_name,
+                            threshold = 1,
+                            value = threshold1
+                          ))
+  item_thresholds <- rbind(item_thresholds, 
+                          data.frame(
+                            item = item_name,
+                            threshold = 2,
+                            value = threshold2
+                          ))
+}
+
+# Create a more detailed Wright Map
+p_detailed <- ggplot() +
+  # Person abilities as a density plot on the left side
+  geom_density(data = person_abilities, 
+               aes(x = ability, y = -after_stat(scaled)), 
+               fill = "lightblue", alpha = 0.5) +
+  # Item thresholds as points
+  geom_point(data = item_thresholds, 
+             aes(x = value, y = reorder(item, value), 
+                 color = as.factor(threshold), shape = as.factor(threshold)),
+             size = 3) +
+  # Add item labels
+  scale_color_manual(values = c("blue", "red"), 
+                    name = "Threshold",
+                    labels = c("0→1", "1→2")) +
+  scale_shape_manual(values = c(16, 17), 
+                    name = "Threshold",
+                    labels = c("0→1", "1→2")) +
+  # Coordinate system and labels
+  coord_cartesian(xlim = ability_range) +
+  theme_minimal() +
+  labs(x = "Ability/Difficulty", y = "") +
+  ggtitle("Wright Map: Person Abilities vs Item Thresholds") +
+  theme(legend.position = "bottom")
+
+print(p_detailed)
+```
+
+```{r}
+# Set up plotting parameters
+ability_range <- range(c(person_abilities$ability, item_difficulties$difficulty))
+ability_range <- c(ability_range[1] - 1, ability_range[2] + 1)  # Add some margin
+
+# Person ability distribution plot (left side)
+p_persons <- ggplot(person_abilities, aes(x = ability)) +
+  geom_histogram(aes(y = ..density..), bins = 30, fill = "lightblue", color = "black") +
+  geom_density(alpha = 0.3, fill = "blue") +
+  coord_flip(xlim = ability_range) +
+  theme_minimal() +
+  theme(
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank()
+  ) +
+  labs(x = "", y = "Density") +
+  ggtitle("Person Abilities")
+
+# Item difficulty plot (right side)
+p_items <- ggplot() +
+  # Add item difficulties
+  geom_point(data = item_difficulties, 
+             aes(y = difficulty, x = reorder(item, difficulty)),
+             size = 3) +
+  # Add error bars
+  geom_errorbar(data = item_difficulties,
+                aes(y = difficulty, x = reorder(item, difficulty),
+                    ymin = difficulty - se, ymax = difficulty + se),
+                width = 0.2) +
+  # Add threshold lines across the plot
+  geom_hline(yintercept = -thresholds, linetype = "dashed", 
+             color = "darkgray", alpha = 0.7) +
+  coord_flip(ylim = ability_range) +
+  theme_minimal() +
+  labs(x = "", y = "Ability/Difficulty") +
+  ggtitle("Item Difficulties") +
+  theme(axis.text.y = element_text(hjust = 0))
+
+# Combine the plots
+wright_map <- plot_grid(p_persons, p_items, align = "h", nrow = 1,
+                       rel_widths = c(1, 2))
+
+# Add an overall title
+title <- ggdraw() + 
+  draw_label("Wright Map: Person Abilities vs Item Difficulties", 
+             fontface = "bold", size = 14)
+
+# Combine title and plot
+plot_grid(title, wright_map, ncol = 1, rel_heights = c(0.1, 1))
+```
+
+```{r}
+library(WrightMap)
+
+# Create item step difficulties matrix
+# For a 3-category model (0, 1, 2), we need 2 columns for the 2 thresholds
+item_steps <- matrix(NA, nrow = 16, ncol = 2)
+item_steps[, 1] <- -fit_grm.coef$item[, , "Intercept[1]"][, 1]  # First threshold (negated)
+item_steps[, 2] <- -fit_grm.coef$item[, , "Intercept[2]"][, 1]  # Second threshold (negated)
+
+# Create the Wright Map
+wrightMap(
+  person_abilities$ability,          # Person abilities
+  item_steps,                # Item difficulties with thresholds
+  item.side = itemClassic,    # Modern item display
+  # person.side = personHist,  # Histogram for person distribution
+  main.title = "Wright Map from Bayesian GRM Model",
+  dim.names = "Engagement",
+  # item.names = item_names,   # Item names
+  # thr.sym.cex = 0.8,         # Size of threshold symbols
+  # thr.sym.col.range = c("blue", "red"),  # Color range for thresholds
+  axis.persons = "Ability",  # Label for person axis
+  axis.items = "Difficulty"  # Label for item axis
+)
+```

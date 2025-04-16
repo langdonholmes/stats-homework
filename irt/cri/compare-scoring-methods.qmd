@@ -1,0 +1,276 @@
+```{r}
+library(mirt)
+library(tidyverse)
+library(ggplot2)
+library(psych)
+library(WrightMap)
+
+cri_responses <- read.csv("~/stats-homework/irt/cri/data/cri_responses_w_o3_scores.csv") %>%
+  select(user_id, score, o3_mini_score, chunk_slug) %>%
+  mutate(o3_mini_score = case_when(
+    o3_mini_score %in% c(1, 2) ~ 0,
+    o3_mini_score == 3 ~ 1,
+    o3_mini_score %in% c(4, 5) ~ 2
+  )) %>% 
+  mutate(item = stringr::str_extract(chunk_slug, "[^-]+$"))
+
+binary_data <- cri_responses %>%
+  mutate(score = case_when(
+    score == 0 ~ 0,
+    score %in% c(1, 2) ~ 1,
+  )) %>%
+  pivot_wider(
+    id_cols = user_id,
+    names_from = item,
+    values_from = score
+  ) %>% 
+  select(-user_id)
+
+# Extract just the response data (without user_id column)
+o3_data <- cri_responses %>%
+  pivot_wider(
+    id_cols = user_id,
+    names_from = item,
+    values_from = o3_mini_score
+  ) %>% 
+  select(-user_id)
+```
+
+```{r}
+# 1. Fit IRT models to both scoring methods
+# For binary data, we'll use a Rasch model (1PL)
+binary_model <- mirt(binary_data, model=1, itemtype = "Rasch", verbose = FALSE)
+
+# For ordinal data, we'll fit both a PCM and GRM
+ordinal_pcm <- mirt(o3_data, 1, itemtype = "gpcm", verbose = FALSE)
+ordinal_grm <- mirt(o3_data, 1, itemtype = "graded", verbose = FALSE)
+
+# 2. Compare model fit
+# Calculate AIC and BIC for model comparison
+aic_bic <- data.frame(
+  Model = c("Binary (Rasch)", "Ordinal (PCM)", "Ordinal (GRM)"),
+  AIC = c(extract.mirt(binary_model, "AIC"),
+          extract.mirt(ordinal_pcm, "AIC"),
+          extract.mirt(ordinal_grm, "AIC")),
+  BIC = c(extract.mirt(binary_model, "BIC"),
+          extract.mirt(ordinal_pcm, "BIC"),
+          extract.mirt(ordinal_grm, "BIC"))
+)
+print(aic_bic)
+
+# Choose the best-fitting model for the ordinal data
+# If GRM fits better (as in the paper), we'll proceed with that
+best_ordinal_model <- if(extract.mirt(ordinal_grm, "AIC") - extract.mirt(ordinal_pcm, "AIC") > 5) {
+  print("GRM selected!")
+  ordinal_grm
+} else {
+  print("PCM selected!")
+  ordinal_pcm
+}
+```
+
+
+```{r}
+# 3. Examine test information functions
+# Create a sequence of theta values
+theta_seq <- seq(-4, 4, by = 0.1)
+
+# Calculate test information for both models
+binary_info <- testinfo(binary_model, theta_seq)
+ordinal_info <- testinfo(best_ordinal_model, theta_seq)
+
+# Create a data frame for plotting
+info_df <- data.frame(
+  Theta = theta_seq,
+  Binary = binary_info,
+  Ordinal = ordinal_info,
+  Relative_Efficiency = ordinal_info / binary_info
+)
+
+# 4. Plot the test information curves
+ggplot(info_df, aes(x = Theta)) +
+  geom_line(aes(y = Binary, color = "Binary")) +
+  geom_line(aes(y = Ordinal, color = "Ordinal")) +
+  labs(title = "Test Information Functions",
+       x = "Theta (Latent Trait)",
+       y = "Information",
+       color = "Scoring Method") +
+  theme_minimal()
+```
+
+
+```{r}
+# 5. Plot the relative efficiency (as in Fig. 1 in the paper)
+ggplot(info_df, aes(x = Theta, y = Relative_Efficiency)) +
+  geom_line() +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  labs(title = "Relative Efficiency of Ordinal vs. Binary Scoring",
+       x = "Theta",
+       y = "Relative Test Information") +
+  theme_minimal()
+```
+
+
+```{r}
+# 6. Examine item parameters and thresholds for a few representative items
+# Get item parameters for both models
+binary_params <- coef(binary_model, simplify = TRUE)$items
+ordinal_params <- coef(best_ordinal_model, simplify = TRUE)$items
+```
+
+
+```{r}
+# 7. Create item characteristic curves for selected items using ggplot2
+# Select some representative items
+item_ids <- 1:5  # First 5 items
+
+# Alternative approach: use extract.item function and trace.lines to get ICC data
+plot_item_curves_ggplot <- function(model, item_num, item_name, model_name) {
+  # Extract trace lines (category probabilities)
+  theta <- seq(-4, 4, length.out = 100)
+  #extract.item(binary_model, 1)
+  trace <- probtrace(extract.item(model, item_num), theta)
+  print(trace)
+  # Convert to data frame for ggplot
+  n_cats <- ncol(trace)
+  df <- data.frame(
+    Theta = rep(theta, n_cats),
+    Probability = as.vector(trace),
+    Response = rep(as.character(0:(n_cats-1)), each = length(theta))
+  )
+  
+  # Create plot
+  p <- ggplot(df, aes(x = Theta, y = Probability, color = Response)) +
+    geom_line(linewidth = 1) +
+    labs(title = paste(model_name, "ICC for Item", item_name),
+         x = "Theta (Latent Trait)",
+         y = "Probability",
+         color = "Response Category") +
+    theme_minimal() +
+    ylim(0, 1)
+  
+  return(p)
+}
+
+# Create plots for each selected item
+for (item in item_ids) {
+  # Get item name for the title
+  item_name <- colnames(binary_data)[item]
+  
+  # Create and print binary plot
+  binary_plot <- plot_item_curves_ggplot(binary_model, item, item_name, "Binary")
+  print(binary_plot)
+  
+  # Create and print ordinal plot
+  ordinal_plot <- plot_item_curves_ggplot(best_ordinal_model, item, item_name, "Ordinal")
+  print(ordinal_plot)
+}
+```
+
+
+```{r}
+# 8. Calculate reliability metrics
+get_reliability <- function(model) {
+  # Extract item parameters
+  item_params <- coef(model, simplify=TRUE)$items
+  
+  # Extract person parameters (theta estimates and standard errors)
+  theta_est <- fscores(model, method="EAP")[,1]
+  theta_sem <- fscores(model, method="EAP", full.scores.SE=TRUE)[,2]
+  
+  # Calculate person separation reliability
+  # Formula: reliability = variance(theta) / (variance(theta) + mean(SE^2))
+  theta_var <- var(theta_est)
+  mean_sem_squared <- mean(theta_sem^2)
+  person_separation_reliability <- theta_var / (theta_var + mean_sem_squared)
+  
+  return (person_separation_reliability)
+}
+
+reliability_df <- data.frame(
+  Model = c("Binary", "Ordinal"),
+  Reliability = c(get_reliability(binary_model), get_reliability(best_ordinal_model)),
+  Marginal_Reliability = c(marginal_rxx(binary_model), marginal_rxx(best_ordinal_model))
+)
+print(reliability_df)
+```
+
+
+```{r}
+# 9. Draw Wright Maps
+
+draw_wright_map <- function(model) {
+  # Extract person ability estimates (thetas)
+  person_thetas <- fscores(model)
+  
+  # Extract item parameters (difficulty parameters)
+  item_params <- coef(model, simplify=TRUE)$items
+  
+  # For a graded model, we need to extract the threshold parameters
+  # These are the difficulty parameters for each transition between score categories
+  difficulty_params <- -item_params[, grep("^d", colnames(item_params)), drop=FALSE]
+  mean_difficulty <- apply(difficulty_params, 1, mean)
+
+  # Get item names
+  item_names <- rownames(item_params)
+
+  # Create the Wright Map
+  wrightMap(person_thetas,
+            mean_difficulty, 
+            item.side = itemClassic, 
+            label.items = item_names,
+            dim.names = "Engagement",
+            main.title = "Wright Map",
+            return.thresholds = FALSE
+            )
+}
+
+draw_wright_map(binary_model)
+```
+
+```{r}
+draw_wright_map(best_ordinal_model)
+```
+
+
+```{r}
+# 10. Compare score distributions
+# Calculate raw scores for each participant
+binary_scores <- rowSums(binary_data, na.rm = TRUE)
+ordinal_scores <- rowSums(o3_data, na.rm = TRUE)
+
+# Create a data frame for percentile comparison (similar to Fig. 4 in the paper)
+percentile_df <- data.frame(
+  Binary_Score = sort(unique(binary_scores)),
+  Binary_Percentile = NA,
+  Ordinal_Score = NA,
+  Ordinal_Percentile = NA
+)
+
+# Fill in percentiles
+for (i in 1:nrow(percentile_df)) {
+  score <- percentile_df$Binary_Score[i]
+  percentile_df$Binary_Percentile[i] <- mean(binary_scores <= score) * 100
+}
+
+# Map ordinal scores to the same percentiles
+for (i in 1:nrow(percentile_df)) {
+  target_percentile <- percentile_df$Binary_Percentile[i]
+  # Find closest matching percentile in ordinal scores
+  ordinal_percentiles <- sapply(sort(unique(ordinal_scores)), function(s) mean(ordinal_scores <= s) * 100)
+  closest_idx <- which.min(abs(ordinal_percentiles - target_percentile))
+  percentile_df$Ordinal_Score[i] <- sort(unique(ordinal_scores))[closest_idx]
+  percentile_df$Ordinal_Percentile[i] <- ordinal_percentiles[closest_idx]
+}
+
+# Plot the percentile comparison
+ggplot(percentile_df, aes(x = Binary_Percentile)) +
+  geom_point(aes(y = Binary_Score, color = "Binary")) +
+  geom_point(aes(y = Ordinal_Score, color = "Ordinal")) +
+  labs(title = "Score Equivalence Based on Percentiles",
+       x = "Percentile",
+       y = "Score",
+       color = "Scoring Method") +
+  theme_minimal()
+```
+

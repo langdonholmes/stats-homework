@@ -1,0 +1,121 @@
+```{r}
+library(mirt)
+library(tidyverse)
+cri_responses <- read.csv("~/stats-homework/irt/cri/data/cri_responses_w_o3_scores.csv")
+responses_wide <- cri_responses[c("user_id", "o3_mini_score", "chunk_slug")] %>%
+  rename(score = o3_mini_score) %>%
+  mutate(score = case_when(
+    score %in% c(1, 2) ~ 0,
+    score == 3 ~ 1,
+    score %in% c(4, 5) ~ 2
+  )) %>% 
+  mutate(chunk_id = stringr::str_extract(chunk_slug, "[^-]+$")) %>%
+  pivot_wider(
+    id_cols = user_id,
+    names_from = chunk_id,
+    values_from = score
+  )
+
+# Extract just the response data (without user_id column)
+response_data <- responses_wide %>% 
+  select(-user_id)
+```
+
+
+```{r}
+# 1. Fit the Graded Response Model
+grm_model <- mirt(response_data, 1, itemtype = "graded")
+
+# 1. Item fit analysis with X2 (works with missing data)
+item_fit <- itemfit(grm_model, fit_stats = c("X2", "G2"), na.rm = FALSE)
+print("Item Fit Statistics:")
+print(item_fit)
+
+# Create a more readable summary of item fit with X2
+item_fit_summary <- data.frame(
+  Item = colnames(response_data),
+  X2 = item_fit$X2,
+  p_value = item_fit$p.X2,
+  Significant = ifelse(item_fit$p.X2 < 0.05, "Yes", "No"),
+  G2 = item_fit$G2,
+  p_G2 = item_fit$p.G2
+)
+print(item_fit_summary)
+
+# 2. Person fit analysis
+# Person fit should work with missing data
+person_fit <- personfit(grm_model)
+print("Person Fit Statistics:")
+print(head(person_fit))  # Show first few rows
+
+# Summary statistics for z_h values
+z_h_summary <- summary(person_fit$z.outfit)
+print("Z_h Summary Statistics:")
+print(z_h_summary)
+
+# Count of potentially misfitting persons (typically |z_h| > 2)
+misfitting_count <- sum(abs(person_fit$z.outfit) > 2, na.rm = TRUE)
+total_valid_persons <- sum(!is.na(person_fit$z.outfit))
+fit_percentage <- (total_valid_persons - misfitting_count) / total_valid_persons * 100
+print(paste("Number of potentially misfitting persons (|z_h| > 2):", misfitting_count))
+print(paste("Percentage of fitting persons:", round(fit_percentage, 2), "%"))
+
+# 3. Model fit comparison
+# Fit Partial Credit Model
+pcm_model <- mirt(response_data, 1, itemtype = "Rasch")
+
+# Compare models
+comparison <- anova(pcm_model, grm_model)
+print("Model Comparison - Likelihood Ratio Test:")
+print(comparison)
+
+# Extract fit indices for comparison
+fit_indices <- data.frame(
+  Model = c("Partial Credit Model", "Graded Response Model"),
+  AIC = c(extract.mirt(pcm_model, 'AIC'), extract.mirt(grm_model, 'AIC')),
+  BIC = c(extract.mirt(pcm_model, 'BIC'), extract.mirt(grm_model, 'BIC')),
+  Log_Likelihood = c(extract.mirt(pcm_model, 'logLik'), extract.mirt(grm_model, 'logLik'))
+)
+print("Model Fit Indices Comparison:")
+print(fit_indices)
+
+# Visualization for item fit using X2 instead of S_X2
+if(require(ggplot2)){
+  ggplot(item_fit_summary, aes(x = reorder(Item, -X2), y = X2)) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    geom_hline(yintercept = qchisq(0.95, df = mean(item_fit$df)), linetype = "dashed", color = "red") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(title = "Item Fit Statistics (X²)", 
+         x = "Item", 
+         y = "X² Value",
+         caption = "Red line indicates critical chi-square value at alpha = 0.05")
+}
+
+# Add a visualization comparing X2 and G2
+if(require(ggplot2)){
+  item_fit_long <- item_fit_summary %>%
+    select(Item, X2, G2) %>%
+    pivot_longer(cols = c(X2, G2), names_to = "statistic", values_to = "value")
+  
+  ggplot(item_fit_long, aes(x = reorder(Item, -value), y = value, fill = statistic)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(title = "Comparison of X² and G² Item Fit Statistics", 
+         x = "Item", 
+         y = "Statistic Value",
+         fill = "Statistic Type")
+}
+
+# Visualization for person fit
+if(require(ggplot2)){
+  person_fit_df <- data.frame(z_h = person_fit$Zh)
+  ggplot(person_fit_df, aes(x = z_h)) +
+    geom_histogram(binwidth = 0.5, fill = "steelblue", color = "black") +
+    geom_vline(xintercept = c(-2, 2), linetype = "dashed", color = "red") +
+    labs(title = "Distribution of Person Fit (z_h) Values", 
+         x = "z_h Values", 
+         y = "Count",
+         caption = "Red lines indicate thresholds at z_h = -2 and z_h = 2")
+}
+```
+
