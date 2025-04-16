@@ -42,7 +42,7 @@ o3_data <- cri_responses %>%
 binary_model <- mirt(binary_data, model=1, itemtype = "Rasch", verbose = FALSE)
 
 # For ordinal data, we'll fit both a PCM and GRM
-ordinal_pcm <- mirt(o3_data, 1, itemtype = "gpcm", verbose = FALSE)
+ordinal_pcm <- mirt(o3_data, 1, itemtype = "Rasch", verbose = FALSE)
 ordinal_grm <- mirt(o3_data, 1, itemtype = "graded", verbose = FALSE)
 
 # 2. Compare model fit
@@ -209,14 +209,14 @@ draw_wright_map <- function(model) {
   # For a graded model, we need to extract the threshold parameters
   # These are the difficulty parameters for each transition between score categories
   difficulty_params <- -item_params[, grep("^d", colnames(item_params)), drop=FALSE]
-  mean_difficulty <- apply(difficulty_params, 1, mean)
+  difficulty_params <- apply(difficulty_params, 1, mean)
 
   # Get item names
   item_names <- rownames(item_params)
 
   # Create the Wright Map
   wrightMap(person_thetas,
-            mean_difficulty, 
+            difficulty_params, 
             item.side = itemClassic, 
             label.items = item_names,
             dim.names = "Engagement",
