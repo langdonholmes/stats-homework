@@ -1,0 +1,78 @@
+```{r}
+# lordif depends on rms
+# The latest version of rms requires r >= 4.4
+# Install the most recent version of rms that is happy with r == 4.3
+packageurl <- "https://cran.r-project.org/src/contrib/Archive/rms/rms_6.8-2.tar.gz"
+install.packages(packageurl, repos=NULL, type="source", dependencies=TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(mirt)
+library(lordif)
+
+cri_responses <- read.csv("~/stats-homework/irt/cri/data/cri_responses_w_o3_scores.csv")
+
+responses_wide <- cri_responses %>%
+  select(user_id, o3_mini_score, chunk_slug, demo_age, condition) %>%
+  rename(score = o3_mini_score, age = demo_age) %>%
+  mutate(age = fct_collapse(age,
+    young = c("18-24 years old", "25-34 years old", "35-44 years old"),
+    old = c("45-54 years old", "55-64 years old", "65+ years old")
+  )) %>%
+  mutate(score = case_when(
+    score %in% c(1, 2) ~ 0,
+    score %in% c(3) ~ 1,
+    score %in% c(4, 5) ~ 2
+  )) %>%
+  mutate(chunk_id = stringr::str_extract(chunk_slug, "[^-]+$")) %>%
+  mutate(condition = as.factor(condition)) %>%
+  pivot_wider(
+    id_cols = c(user_id, age, condition),
+    names_from = chunk_id,
+    values_from = score
+  )
+
+# Extract just the response data (without user_id column)
+response_data <- responses_wide %>%
+  select(-user_id, -age, -condition)
+```
+
+```{r}
+# Extract the grouping variable (condition)
+group_data <- responses_wide$condition
+
+# Basic check of the data
+cat("Number of respondents:", nrow(response_data), "\n")
+cat("Number of items:", ncol(response_data), "\n")
+cat("Distribution of condition groups:\n")
+print(table(group_data))
+```
+
+
+```{r}
+# Run lordif analysis
+# Note: minCell parameter may need adjustment based on your sample size
+dif_results <- lordif(response_data, group_data,
+                      criterion = "Chisqr",  # Chi-square criterion for flagging items
+                      model = "GPCM",         # Generalized Partial Credit Model
+                      alpha = 0.01,          # Significance level
+                      minCell = 1)           # Minimum expected cell frequency
+
+# Plot the item curves for items flagged with DIF
+plot(dif_results)
+
+# write.csv(dif_results$stats, "dif_statistics.csv", row.names = FALSE)
+```
+
+```{r}
+stats <- round(dif_results$stats[,c(1,3:5,7:9)], 2)
+stats
+```
+
+
+
+
+
+
+

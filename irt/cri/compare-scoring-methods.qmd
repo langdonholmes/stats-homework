@@ -194,83 +194,250 @@ reliability_df <- data.frame(
 )
 print(reliability_df)
 ```
-
-
 ```{r}
-# 9. Draw Wright Maps
-
-draw_wright_map <- function(model) {
-  # Extract person ability estimates (thetas)
-  person_thetas <- fscores(model)
-  
-  # Extract item parameters (difficulty parameters)
-  item_params <- coef(model, simplify=TRUE)$items
-  
-  # For a graded model, we need to extract the threshold parameters
-  # These are the difficulty parameters for each transition between score categories
-  difficulty_params <- -item_params[, grep("^d", colnames(item_params)), drop=FALSE]
-  difficulty_params <- apply(difficulty_params, 1, mean)
-
-  # Get item names
-  item_names <- rownames(item_params)
-
-  # Create the Wright Map
-  wrightMap(person_thetas,
-            difficulty_params, 
-            item.side = itemClassic, 
-            label.items = item_names,
-            dim.names = "Engagement",
-            main.title = "Wright Map",
-            return.thresholds = FALSE
-            )
-}
-
-draw_wright_map(binary_model)
+mirt::coef(best_ordinal_model, IRTpars = TRUE, simplify = TRUE) %>%
+  as.data.frame %>%
+  tibble::rownames_to_column("items") 
 ```
 
 ```{r}
-draw_wright_map(best_ordinal_model)
-```
+# 1. Item fit analysis with X2 (works with missing data)
+item_fit <- mirt::itemfit(best_ordinal_model, fit_stats = c("X2"), na.rm = FALSE) %>% 
+  mutate(across(where(is.numeric), round, 2))
+print("Item Fit Statistics:")
+print(item_fit)
 
-
-```{r}
-# 10. Compare score distributions
-# Calculate raw scores for each participant
-binary_scores <- rowSums(binary_data, na.rm = TRUE)
-ordinal_scores <- rowSums(o3_data, na.rm = TRUE)
-
-# Create a data frame for percentile comparison (similar to Fig. 4 in the paper)
-percentile_df <- data.frame(
-  Binary_Score = sort(unique(binary_scores)),
-  Binary_Percentile = NA,
-  Ordinal_Score = NA,
-  Ordinal_Percentile = NA
+# Create a more readable summary of item fit with X2
+item_fit_summary <- data.frame(
+  Item = item_fit$item,
+  X2 = item_fit$X2,
+  p_value = item_fit$p.X2,
+  Significant = ifelse(item_fit$p.X2 < 0.05, "Yes", "No")
 )
+print(item_fit_summary)
 
-# Fill in percentiles
-for (i in 1:nrow(percentile_df)) {
-  score <- percentile_df$Binary_Score[i]
-  percentile_df$Binary_Percentile[i] <- mean(binary_scores <= score) * 100
-}
+# 2. Person fit analysis
+# Person fit should work with missing data
+person_fit <- mirt::personfit(best_ordinal_model)
+print("Person Fit Statistics:")
+print(head(person_fit))  # Show first few rows
 
-# Map ordinal scores to the same percentiles
-for (i in 1:nrow(percentile_df)) {
-  target_percentile <- percentile_df$Binary_Percentile[i]
-  # Find closest matching percentile in ordinal scores
-  ordinal_percentiles <- sapply(sort(unique(ordinal_scores)), function(s) mean(ordinal_scores <= s) * 100)
-  closest_idx <- which.min(abs(ordinal_percentiles - target_percentile))
-  percentile_df$Ordinal_Score[i] <- sort(unique(ordinal_scores))[closest_idx]
-  percentile_df$Ordinal_Percentile[i] <- ordinal_percentiles[closest_idx]
-}
+# Summary statistics for z_h values
+z_h_summary <- summary(person_fit$Zh)
+print("Z_h Summary Statistics:")
+print(z_h_summary)
 
-# Plot the percentile comparison
-ggplot(percentile_df, aes(x = Binary_Percentile)) +
-  geom_point(aes(y = Binary_Score, color = "Binary")) +
-  geom_point(aes(y = Ordinal_Score, color = "Ordinal")) +
-  labs(title = "Score Equivalence Based on Percentiles",
-       x = "Percentile",
-       y = "Score",
-       color = "Scoring Method") +
-  theme_minimal()
+# Count of potentially misfitting persons (typically |z_h| > 1.96)
+misfitting_count <- sum(abs(person_fit$Zh) > 1.96, na.rm = TRUE)
+total_valid_persons <- sum(!is.na(person_fit$Zh))
+fit_percentage <- (total_valid_persons - misfitting_count) / total_valid_persons * 100
+print(paste("Number of potentially misfitting persons (|z_h| > 1.96):", misfitting_count))
+print(paste("Percentage of fitting persons:", round(fit_percentage, 2), "%"))
+
+
+# Visualization for item fit using X2 instead of S_X2
+ggplot(item_fit_summary, aes(x = reorder(Item, -X2), y = X2)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  geom_hline(yintercept = qchisq(0.95, df = mean(item_fit$df)), linetype = "dashed", color = "red") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Item Fit Statistics (X²)", 
+       x = "Item", 
+       y = "X² Value",
+       caption = "Red line indicates critical chi-square value at alpha = 0.05")
+
+# Visualization for person fit
+person_fit_df <- data.frame(z_h = person_fit$Zh)
+ggplot(person_fit_df, aes(x = z_h)) +
+  geom_histogram(binwidth = 0.5, fill = "steelblue", color = "black") +
+  geom_vline(xintercept = c(-1.96, 1.96), linetype = "dashed", color = "red") +
+  labs(title = "Distribution of Person Fit (z_h) Values", 
+       x = "z_h Values", 
+       y = "Count",
+       caption = "Red lines indicate thresholds at z_h = -1.96 and z_h = 1.96")
 ```
+
+
+```{r}
+
+personDist <- function(model, 
+                       theta_range = c(-4, 4),
+                       density = FALSE,
+                       bins = 35) {
+  
+  person.params <- fscores(model, QMC = TRUE) %>%
+    as.data.frame() 
+  
+  if(length(person.params) != 1) {
+    p <- person.params %>%
+      tidyr::pivot_longer(names(.), names_to = "dimension") %>%
+      ggplot(aes(x = value, fill = dimension)) 
+      
+  } else {
+  
+  p <- person.params %>%
+    pivot_longer(names(.), names_to = "dimension") %>%
+    ggplot(aes(x = value, fill = dimension)) +
+    guides(fill = "none")
+  }
+  
+  if(isTRUE(density)) {
+    
+    p <- p + geom_density()
+    
+  } else {
+    
+    p <- p + geom_histogram(bins = bins, color = "white")
+  }
+
+  
+  p + xlim(theta_range) + theme_minimal() + labs(x = expression(theta))
+  
+}
+
+itemDist <- function(model,
+                     theta_range = c(-4, 4),
+                     line_size = 0.5,
+                     point_size = 2,
+                     point_color = "red",
+                     line_color = "red",
+                     point_shape = 17,
+                     mean_point_size = 3,
+                     mean_point_color = "black",
+                     mean_point_shape = 18,
+                     label_thresholds = TRUE,    # Add option to toggle labels
+                     label_size = 3,             # Add size for labels
+                     label_hjust = -0.5,         # Horizontal adjustment
+                     label_vjust = 0.5) {        # Vertical adjustment
+  
+  # Get the item parameters
+  item.params <- mirt::coef(model, IRTpars = TRUE, simplify = TRUE) %>%
+    as.data.frame() %>%
+    tibble::rownames_to_column("items")
+  
+  # Find all b-parameter columns - works with both "items.b" and "items.b1", etc.
+  b_cols <- grep("^items\\.b\\d*$", names(item.params), value = TRUE)
+  
+  # Reshape data to long format
+  item_long <- item.params %>%
+    tidyr::pivot_longer(
+      cols = all_of(b_cols),
+      names_to = "parameter",
+      values_to = "value"
+    ) %>%
+    # Extract threshold number from parameter name
+    mutate(
+      threshold_num = case_when(
+        parameter == "items.b" ~ "1",  # If it's just "items.b", assign "1"
+        TRUE ~ stringr::str_extract(parameter, "\\d+")  # Otherwise extract the number
+      )
+    )
+  
+  # Calculate summary statistics for each item
+  item_summary <- item_long %>%
+    group_by(items) %>%
+    summarize(
+      min_value = min(value, na.rm = TRUE),
+      mean_value = mean(value, na.rm = TRUE),
+      max_value = max(value, na.rm = TRUE)
+    )
+  
+  # Create the plot
+  p <- ggplot() +
+    # Add lines for the range - thinner lines
+    geom_segment(
+      data = item_summary,
+      aes(y = forcats::fct_reorder(items, mean_value), 
+          x = min_value, xend = max_value, yend = forcats::fct_reorder(items, mean_value)),
+      size = line_size, 
+      color = line_color
+    ) +
+    # Add points for each threshold
+    geom_point(
+      data = item_long,
+      aes(y = forcats::fct_reorder(items, item_summary$mean_value[match(items, item_summary$items)]), 
+          x = value),
+      size = point_size, 
+      color = point_color,
+      shape = point_shape
+    )
+
+  # Add labels for thresholds if requested
+  if(label_thresholds) {
+    p <- p + 
+      geom_text(
+        data = item_long,
+        aes(y = forcats::fct_reorder(items, item_summary$mean_value[match(items, item_summary$items)]), 
+            x = value,
+            label = threshold_num),
+        size = label_size,
+        hjust = label_hjust,
+        vjust = label_vjust
+      )
+  }
+
+  p + xlim(theta_range) + 
+    theme_minimal() + 
+    labs(x = expression(theta), y = "")
+}
+
+itempersonMap <- function(model,
+                          theta_range = c(-4,4),
+                          title = "Item Person Map",
+                          margin = c(1,0,-1.5,0),
+                          density = FALSE,
+                          color = "red",
+                          shape = 20,
+                          size = 2,
+                          line_size = 0.5,
+                          mean_point_size = 1,
+                          mean_point_shape = 18,
+                          mean_point_color = "black",
+                          label_thresholds = TRUE,    # Add label parameter
+                          label_size = 2.8,             # Add label size parameter
+                          label_hjust = -.5,         # Add label hjust parameter
+                          label_vjust = .5,          # Add label vjust parameter
+                          theme = theme_minimal(),
+                          ...) {
+  
+  p1 <- personDist(model, theta_range = theta_range, density = density) + 
+    theme + 
+    theme(plot.margin = unit(margin,"cm")) + 
+    labs(title = title)
+  
+  p2 <- itemDist(model, 
+                theta_range = theta_range, 
+                point_shape = shape, 
+                point_color = color, 
+                point_size = size,
+                line_size = line_size,
+                line_color = color,
+                mean_point_size = mean_point_size,
+                mean_point_shape = mean_point_shape,
+                mean_point_color = mean_point_color,
+                label_thresholds = label_thresholds,
+                label_size = label_size,
+                label_hjust = label_hjust,
+                label_vjust = label_vjust,
+                ...) + 
+    theme
+  
+  p <- cowplot::plot_grid(p1, p2,
+                          nrow = 2,
+                          rel_heights = c(1.5,2.5),
+                          align = "hv",
+                          axis = "tlbr")
+  
+  return(p)
+}
+```
+
+```{r}
+itempersonMap(binary_model, label_thresholds = FALSE, theta_range=c(-5,3))
+```
+
+
+```{r}
+itempersonMap(best_ordinal_model, theta_range=c(-3,3))
+```
+
 
